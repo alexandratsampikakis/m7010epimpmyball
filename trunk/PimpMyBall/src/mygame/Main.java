@@ -32,6 +32,7 @@
 package mygame;
 //alex was hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebajs
 // Jimmy was också here!!!
+// Nicke också!!!
 
 import jme3tools.converters.ImageToAwt;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
