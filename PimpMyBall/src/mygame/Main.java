@@ -30,9 +30,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 package mygame;
-//alex was hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeebajs
-// Jimmy was också here!!!
-// Nicke också!!!
 
 import jme3tools.converters.ImageToAwt;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
@@ -82,7 +79,7 @@ import com.jme3.util.SkyFactory;
  * Left click to place a sphere on the ground where the crosshairs intersect the terrain.
  * Hit keys 1 or 2 to raise/lower the terrain at that spot.
  *
- * @author Brent Owens
+ * @author
  */
 public class Main extends SimpleApplication {
 
@@ -167,6 +164,10 @@ public class Main extends SimpleApplication {
             walkDirection.addLocal(camDir.negate());
         }
         playerControl.setWalkDirection(walkDirection);
+        
+        // Make the camera follow the avatar.
+        this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
+	this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
     private ActionListener actionListener = new ActionListener() {
 
