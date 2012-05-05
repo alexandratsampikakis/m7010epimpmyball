@@ -39,10 +39,13 @@ import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
 import com.jme3.audio.AudioNode;
+import com.jme3.bullet.collision.shapes.CapsuleCollisionShape;
+import com.jme3.bullet.control.CharacterControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
+import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
@@ -53,11 +56,15 @@ import com.jme3.light.DirectionalLight;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Matrix3f;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.control.CameraControl.ControlDirection;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.terrain.geomipmap.TerrainLodControl;
 import com.jme3.terrain.heightmap.AbstractHeightMap;
@@ -85,41 +92,139 @@ public class Main extends SimpleApplication {
     Material matWire;
     boolean wireframe = false;
     protected BitmapText hintText;
-    PointLight pl;
-    Geometry lightMdl;
-    Geometry collisionMarker;
+    private PointLight pl;
+    private Geometry lightMdl;
+    private Geometry collisionMarker;
     private BulletAppState bulletAppState;
-    Geometry collisionSphere;
-    Geometry collisionBox;
-    Geometry selectedCollisionObject;
+    private Geometry collisionSphere;
+    private Geometry collisionBox;
+    private Geometry selectedCollisionObject;
+    private Node playerNode;
+    private Geometry playerGeometry;
+    private CharacterControl playerControl;
+    private Vector3f walkDirection = new Vector3f(0, 0, 0);
+    private boolean left = false,
+            right = false,
+            up = false,
+            down = false;
 
     public static void main(String[] args) {
         Main app = new Main();
         app.start();
     }
 
-    @Override
+    /*@Override
     public void initialize() {
-        super.initialize();
-        loadHintText();
-    }
-
+    super.initialize();
+    loadHintText();
+    }*/
     @Override
     public void simpleInitApp() {
-        
         //Creating a sky
         rootNode.attachChild(SkyFactory.createSky(
-        assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
-        
+                assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
+
         //Play sound
         AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
-        backgroundMusic.setVolume(2);
+        backgroundMusic.setVolume(0);
         backgroundMusic.play();
-        
+
+        initKeys();
+        initLighting();
+
         bulletAppState = new BulletAppState();
         bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(bulletAppState);
-        setupKeys();
+
+        initPlayer();
+        initCamera();
+        setUpTerrain();
+    }
+
+    @Override
+    public void update() {
+        super.update();
+    }
+
+    @Override
+    public void simpleUpdate(float tpf) {
+        Vector3f camDir = cam.getDirection().clone().multLocal(0.25f);
+        Vector3f camLeft = cam.getLeft().clone().multLocal(0.25f);
+        camDir.y = 0;
+        camLeft.y = 0;
+        walkDirection.set(0, 0, 0);
+
+        if (left) {
+            walkDirection.addLocal(camLeft);
+        }
+        if (right) {
+            walkDirection.addLocal(camLeft.negate());
+        }
+        if (up) {
+            walkDirection.addLocal(camDir);
+        }
+        if (down) {
+            walkDirection.addLocal(camDir.negate());
+        }
+        playerControl.setWalkDirection(walkDirection);
+    }
+    private ActionListener actionListener = new ActionListener() {
+
+        public void onAction(String binding, boolean isPressed, float tpf) {
+            if (binding.equals("CharLeft")) {
+                if (isPressed) {
+                    left = true;
+                } else {
+                    left = false;
+                }
+            } else if (binding.equals("CharRight")) {
+                if (isPressed) {
+                    right = true;
+                } else {
+                    right = false;
+                }
+            } else if (binding.equals("CharForward")) {
+                if (isPressed) {
+                    up = true;
+                } else {
+                    up = false;
+                }
+            } else if (binding.equals("CharBackward")) {
+                if (isPressed) {
+                    down = true;
+                } else {
+                    down = false;
+                }
+            }
+        }
+    };
+
+    private void testCollision(Vector3f oldLoc) {
+        if (terrain.collideWith(selectedCollisionObject.getWorldBound(), new CollisionResults()) > 0) {
+            selectedCollisionObject.setLocalTranslation(oldLoc);
+        }
+    }
+
+    private void initLighting() {
+        // Create directional light
+        DirectionalLight directionalLight = new DirectionalLight();
+        directionalLight.setDirection(new Vector3f(-0.08f, -0.4f, -0.9f).normalizeLocal());
+        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
+        rootNode.addLight(directionalLight);
+        //Create ambient light
+        AmbientLight ambientLight = new AmbientLight();
+        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
+        rootNode.addLight(ambientLight);
+
+    }
+
+    private void initCamera() {
+        flyCam.setEnabled(false);
+        ChaseCamera camera = new ChaseCamera(cam, playerNode, inputManager);
+        camera.setDragToRotate(false);
+    }
+
+    private void setUpTerrain() {
         matRock = new Material(assetManager, "Common/MatDefs/Terrain/Terrain.j3md");
         matRock.setTexture("Alpha", assetManager.loadTexture("Textures/Terrain/splat/alphamap.png"));
         Texture heightMapImage = assetManager.loadTexture("Textures/Terrain/splat/mountains512.png");
@@ -135,177 +240,47 @@ public class Main extends SimpleApplication {
         rock.setWrap(WrapMode.Repeat);
         matRock.setTexture("Tex3", rock);
         matRock.setFloat("Tex3Scale", 128f);
-        /*matWire = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        matWire.getAdditionalRenderState().setWireframe(true);
-        matWire.setColor("Color", ColorRGBA.Green);*/
         AbstractHeightMap heightmap = null;
         try {
             heightmap = new ImageBasedHeightMap(heightMapImage.getImage(), 0.25f);
             heightmap.load();
         } catch (Exception e) {
         }
-
         terrain = new TerrainQuad("terrain", 65, 513, heightmap.getHeightMap());
         TerrainLodControl control = new TerrainLodControl(terrain, getCamera());
-        control.setLodCalculator( new DistanceLodCalculator(65, 2.7f) ); // patch size, and a multiplier
+        control.setLodCalculator(new DistanceLodCalculator(65, 2.7f)); // patch size, and a multiplier
         terrain.addControl(control);
         terrain.setMaterial(matRock);
         terrain.setLocalScale(new Vector3f(2, 2, 2));
         terrain.setLocked(false); // unlock it so we can edit the height
         rootNode.attachChild(terrain);
-
-        /**
-         * Create PhysicsRigidBodyControl for collision
-         */
         terrain.addControl(new RigidBodyControl(0));
         bulletAppState.getPhysicsSpace().addAll(terrain);
-
-
-        // Add 5 physics spheres to the world, with random sizes and positions
-        // let them drop from the sky
-        for (int i = 0; i < 5; i++) {
-            float r = (float) (8 * Math.random());
-            Geometry sphere = new Geometry("cannonball", new Sphere(10, 10, r));
-            Material faceMaterial = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-            faceMaterial.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
-            sphere.setMaterial(faceMaterial);
-            float x = (float) (20 * Math.random()) - 40; // random position
-            float y = (float) (20 * Math.random()) - 40; // random position
-            float z = (float) (20 * Math.random()) - 40; // random position
-            sphere.setLocalTranslation(new Vector3f(x, 100 + y, z));
-            sphere.addControl(new RigidBodyControl(new SphereCollisionShape(r), 2));
-            rootNode.attachChild(sphere);
-            bulletAppState.getPhysicsSpace().add(sphere);
-        }
-
-        /*collisionBox = new Geometry("collisionBox", new Box(2, 2, 2));
-        collisionBox.setModelBound(new BoundingBox());
-        collisionBox.setLocalTranslation(new Vector3f(20, 95, 30));
-        collisionBox.setMaterial(matWire);
-        rootNode.attachChild(collisionBox);
-        selectedCollisionObject = collisionBox;*/
-
-        DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(1, -0.5f, -0.1f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.40f, 0.50f, 1.0f));
-        rootNode.addLight(directionalLight);
-        
-        AmbientLight ambientLight = new AmbientLight();
-        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
-        rootNode.addLight(ambientLight);
-
-        cam.setLocation(new Vector3f(0, 25, -10));
-        cam.lookAtDirection(new Vector3f(0, -1, 0).normalizeLocal(), Vector3f.UNIT_Y);
     }
 
-    public void loadHintText() {
-        hintText = new BitmapText(guiFont, false);
-        hintText.setSize(guiFont.getCharSet().getRenderedSize());
-        hintText.setLocalTranslation(0, getCamera().getHeight(), 0);
-        //hintText.setText("Hit T to switch to wireframe");
-        hintText.setText("");
-        guiNode.attachChild(hintText);
+    private void initPlayer() {
+        float radius = 2;
+        playerNode = new Node("Player");
+        playerGeometry = new Geometry("PlayerGeometry", new Sphere(10, 10, radius));
+        rootNode.attachChild(playerNode);
+        playerNode.attachChild(playerGeometry);
+        Material material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+        material.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
+        playerGeometry.setMaterial(material);
+        playerNode.setLocalTranslation(new Vector3f(0, 100, 0));
+        SphereCollisionShape sphereShape = new SphereCollisionShape(radius);
+        float stepHeight = radius / 3f;
+        playerControl = new CharacterControl(sphereShape, stepHeight);
+        playerNode.addControl(playerControl);
+        bulletAppState.getPhysicsSpace().add(playerControl);
     }
 
-    private void setupKeys() {
-        flyCam.setMoveSpeed(50);
-        inputManager.addMapping("wireframe", new KeyTrigger(KeyInput.KEY_T));
-        inputManager.addListener(actionListener, "wireframe");
-        inputManager.addMapping("Lefts", new KeyTrigger(KeyInput.KEY_H));
-        inputManager.addMapping("Rights", new KeyTrigger(KeyInput.KEY_K));
-        inputManager.addMapping("Ups", new KeyTrigger(KeyInput.KEY_U));
-        inputManager.addMapping("Downs", new KeyTrigger(KeyInput.KEY_J));
-        inputManager.addMapping("Forwards", new KeyTrigger(KeyInput.KEY_Y));
-        inputManager.addMapping("Backs", new KeyTrigger(KeyInput.KEY_I));
-        inputManager.addListener(actionListener, "Lefts");
-        inputManager.addListener(actionListener, "Rights");
-        inputManager.addListener(actionListener, "Ups");
-        inputManager.addListener(actionListener, "Downs");
-        inputManager.addListener(actionListener, "Forwards");
-        inputManager.addListener(actionListener, "Backs");
-        inputManager.addMapping("shoot", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        inputManager.addListener(actionListener, "shoot");
-        inputManager.addMapping("cameraDown", new MouseButtonTrigger(MouseInput.BUTTON_RIGHT));
-        inputManager.addListener(actionListener, "cameraDown");
-    }
-
-    @Override
-    public void update() {
-        super.update();
-    }
-
-    private void createCollisionMarker() {
-        Sphere s = new Sphere(6, 6, 1);
-        collisionMarker = new Geometry("collisionMarker");
-        collisionMarker.setMesh(s);
-        Material mat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-        mat.setColor("Color", ColorRGBA.Orange);
-        collisionMarker.setMaterial(mat);
-        rootNode.attachChild(collisionMarker);
-    }
-    private ActionListener actionListener = new ActionListener() {
-
-        public void onAction(String binding, boolean keyPressed, float tpf) {
-            if (binding.equals("wireframe") && !keyPressed) {
-                wireframe = !wireframe;
-                if (!wireframe) {
-                    terrain.setMaterial(matWire);
-                } else {
-                    terrain.setMaterial(matRock);
-                }
-            } else if (binding.equals("shoot") && !keyPressed) {
-
-                Vector3f origin = cam.getWorldCoordinates(new Vector2f(settings.getWidth() / 2, settings.getHeight() / 2), 0.0f);
-                Vector3f direction = cam.getWorldCoordinates(new Vector2f(settings.getWidth() / 2, settings.getHeight() / 2), 0.3f);
-                direction.subtractLocal(origin).normalizeLocal();
-
-
-                Ray ray = new Ray(origin, direction);
-                CollisionResults results = new CollisionResults();
-                int numCollisions = terrain.collideWith(ray, results);
-                if (numCollisions > 0) {
-                    CollisionResult hit = results.getClosestCollision();
-                    if (collisionMarker == null) {
-                        createCollisionMarker();
-                    }
-                    Vector2f loc = new Vector2f(hit.getContactPoint().x, hit.getContactPoint().z);
-                    float height = terrain.getHeight(loc);
-                    System.out.println("collide " + hit.getContactPoint() + ", height: " + height + ", distance: " + hit.getDistance());
-                    collisionMarker.setLocalTranslation(new Vector3f(hit.getContactPoint().x, height, hit.getContactPoint().z));
-                }
-            } else if (binding.equals("cameraDown") && !keyPressed) {
-                getCamera().lookAtDirection(new Vector3f(0, -1, 0), Vector3f.UNIT_Y);
-            } else if (binding.equals("Lefts") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(-0.5f, 0, 0);
-                testCollision(oldLoc);
-            } else if (binding.equals("Rights") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(0.5f, 0, 0);
-                testCollision(oldLoc);
-            } else if (binding.equals("Forwards") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(0, 0, 0.5f);
-                testCollision(oldLoc);
-            } else if (binding.equals("Backs") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(0, 0, -0.5f);
-                testCollision(oldLoc);
-            } else if (binding.equals("Ups") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(0, 0.5f, 0);
-                testCollision(oldLoc);
-            } else if (binding.equals("Downs") && !keyPressed) {
-                Vector3f oldLoc = selectedCollisionObject.getLocalTranslation().clone();
-                selectedCollisionObject.move(0, -0.5f, 0);
-                testCollision(oldLoc);
-            }
-        }
-    };
-
-    private void testCollision(Vector3f oldLoc) {
-        if (terrain.collideWith(selectedCollisionObject.getWorldBound(), new CollisionResults()) > 0) {
-            selectedCollisionObject.setLocalTranslation(oldLoc);
-        }
+    private void initKeys() {
+        inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
+        inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
+        inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
+        inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
+        inputManager.addListener(actionListener, "CharLeft", "CharRight");
+        inputManager.addListener(actionListener, "CharForward", "CharBackward");
     }
 }
