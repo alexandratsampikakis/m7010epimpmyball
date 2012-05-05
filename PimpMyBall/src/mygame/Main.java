@@ -261,7 +261,7 @@ public class Main extends SimpleApplication {
     private void initPlayer() {
         float radius = 2;
         playerNode = new Node("Player");
-        playerGeometry = new Geometry("PlayerGeometry", new Sphere(10, 10, radius));
+        playerGeometry = new Geometry("PlayerGeometry", new Sphere(100, 100, radius));
         rootNode.attachChild(playerNode);
         playerNode.attachChild(playerGeometry);
         Material material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
