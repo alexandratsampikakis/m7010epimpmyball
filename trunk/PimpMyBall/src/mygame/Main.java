@@ -38,6 +38,7 @@ import jme3tools.converters.ImageToAwt;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
+import com.jme3.audio.AudioNode;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
@@ -47,6 +48,7 @@ import com.jme3.input.MouseInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
+import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
@@ -105,8 +107,15 @@ public class Main extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         
+        //Creating a sky
         rootNode.attachChild(SkyFactory.createSky(
-            assetManager, "Textures/purpleSky.png", true));
+        assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
+        
+        //Play sound
+        AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
+        backgroundMusic.setVolume(2);
+        backgroundMusic.play();
+        
         bulletAppState = new BulletAppState();
         bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(bulletAppState);
@@ -126,9 +135,9 @@ public class Main extends SimpleApplication {
         rock.setWrap(WrapMode.Repeat);
         matRock.setTexture("Tex3", rock);
         matRock.setFloat("Tex3Scale", 128f);
-        matWire = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
+        /*matWire = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         matWire.getAdditionalRenderState().setWireframe(true);
-        matWire.setColor("Color", ColorRGBA.Green);
+        matWire.setColor("Color", ColorRGBA.Green);*/
         AbstractHeightMap heightmap = null;
         try {
             heightmap = new ImageBasedHeightMap(heightMapImage.getImage(), 0.25f);
@@ -145,7 +154,6 @@ public class Main extends SimpleApplication {
         terrain.setLocked(false); // unlock it so we can edit the height
         rootNode.attachChild(terrain);
 
-
         /**
          * Create PhysicsRigidBodyControl for collision
          */
@@ -158,7 +166,9 @@ public class Main extends SimpleApplication {
         for (int i = 0; i < 5; i++) {
             float r = (float) (8 * Math.random());
             Geometry sphere = new Geometry("cannonball", new Sphere(10, 10, r));
-            sphere.setMaterial(matWire);
+            Material faceMaterial = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+            faceMaterial.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
+            sphere.setMaterial(faceMaterial);
             float x = (float) (20 * Math.random()) - 40; // random position
             float y = (float) (20 * Math.random()) - 40; // random position
             float z = (float) (20 * Math.random()) - 40; // random position
@@ -175,10 +185,14 @@ public class Main extends SimpleApplication {
         rootNode.attachChild(collisionBox);
         selectedCollisionObject = collisionBox;*/
 
-        DirectionalLight dl = new DirectionalLight();
-        dl.setDirection(new Vector3f(1, -0.5f, -0.1f).normalizeLocal());
-        dl.setColor(new ColorRGBA(0.50f, 0.40f, 0.50f, 1.0f));
-        rootNode.addLight(dl);
+        DirectionalLight directionalLight = new DirectionalLight();
+        directionalLight.setDirection(new Vector3f(1, -0.5f, -0.1f).normalizeLocal());
+        directionalLight.setColor(new ColorRGBA(0.50f, 0.40f, 0.50f, 1.0f));
+        rootNode.addLight(directionalLight);
+        
+        AmbientLight ambientLight = new AmbientLight();
+        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
+        rootNode.addLight(ambientLight);
 
         cam.setLocation(new Vector3f(0, 25, -10));
         cam.lookAtDirection(new Vector3f(0, -1, 0).normalizeLocal(), Vector3f.UNIT_Y);
