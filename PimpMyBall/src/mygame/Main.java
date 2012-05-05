@@ -58,6 +58,7 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -164,10 +165,6 @@ public class Main extends SimpleApplication {
             walkDirection.addLocal(camDir.negate());
         }
         playerControl.setWalkDirection(walkDirection);
-        
-        // Make the camera follow the avatar.
-        this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
-	this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
     private ActionListener actionListener = new ActionListener() {
 
@@ -223,6 +220,10 @@ public class Main extends SimpleApplication {
         flyCam.setEnabled(false);
         ChaseCamera camera = new ChaseCamera(cam, playerNode, inputManager);
         camera.setDragToRotate(false);
+        
+        // Make the camera follow the avatar.
+        this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
+	this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
 
     private void setUpTerrain() {
