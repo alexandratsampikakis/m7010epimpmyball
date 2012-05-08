@@ -98,7 +98,7 @@ public class ChatClient extends JFrame {
                 null, null, initialValue);
     }
 
-    public static void main(String... args) throws Exception {
+    /*public static void main(String... args) throws Exception {
         ChatServer.initializeClasses();
 
         // Grab a host string from the user
@@ -110,7 +110,7 @@ public class ChatClient extends JFrame {
 
         ChatClient test = new ChatClient(s);
         test.setVisible(true);
-    }
+    }*/
 
     private class ChatHandler implements MessageListener<Client> {
 
@@ -154,3 +154,4 @@ public class ChatClient extends JFrame {
         }
     }
 }
+
