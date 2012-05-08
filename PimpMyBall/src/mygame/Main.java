@@ -31,6 +31,9 @@
  */
 package mygame;
 
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jme3tools.converters.ImageToAwt;
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
@@ -62,6 +65,7 @@ import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.control.CameraControl.ControlDirection;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.terrain.geomipmap.TerrainLodControl;
@@ -124,8 +128,15 @@ public class Main extends SimpleApplication {
 
         //Play sound
         AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
-        backgroundMusic.setVolume(0);
+        backgroundMusic.setVolume(2);
         backgroundMusic.play();
+        
+        /** Load a Ninja model (OgreXML + material + texture from test_data) */
+        Spatial ninja = assetManager.loadModel("Models/chess.obj");
+        ninja.scale(0.05f, 0.05f, 0.05f);
+        ninja.rotate(0.0f, -3.0f, 0.0f);
+        ninja.setLocalTranslation(0.0f, 20.0f, 0.0f);
+        rootNode.attachChild(ninja);
 
         initKeys();
         initLighting();
