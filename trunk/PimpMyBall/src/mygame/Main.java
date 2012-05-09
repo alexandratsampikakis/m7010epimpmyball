@@ -61,13 +61,17 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.CameraNode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.control.CameraControl.ControlDirection;
+import com.jme3.scene.debug.WireFrustum;
 import com.jme3.scene.shape.Sphere;
+import com.jme3.shadow.BasicShadowRenderer;
+import com.jme3.shadow.ShadowUtil;
 import com.jme3.terrain.geomipmap.TerrainLodControl;
 import com.jme3.terrain.heightmap.AbstractHeightMap;
 import com.jme3.terrain.heightmap.ImageBasedHeightMap;
@@ -92,6 +96,14 @@ public class Main extends SimpleApplication {
     Node terrainPhysicsNode;
     Material matRock;
     Material matWire;
+    
+    private BasicShadowRenderer bsr;
+    private Vector3f[] points;
+    {
+        points = new Vector3f[8];
+        for (int i = 0; i < points.length; i++) points[i] = new Vector3f();
+    }
+    
     boolean wireframe = false;
     protected BitmapText hintText;
     private PointLight pl;
@@ -142,6 +154,7 @@ public class Main extends SimpleApplication {
 
         initKeys();
         initLighting();
+        initShadow();
 
         bulletAppState = new BulletAppState();
         bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
@@ -167,7 +180,7 @@ public class Main extends SimpleApplication {
 
         if (left) {
             //walkDirection.addLocal(camLeft);
-            walkDirection.addLocal(camDir.negate());
+            walkDirection.addLocal(camDir.negate()); ////////////////sjukt fiskigt!! måste ändra detta sen!!!!
         }
         if (right) {
             //walkDirection.addLocal(camLeft.negate());
@@ -182,6 +195,10 @@ public class Main extends SimpleApplication {
             walkDirection.addLocal(camLeft.negate());
         }
         playerControl.setAngularVelocity(walkDirection.mult(10f));
+        
+        //For the shadow
+        Camera shadowCam = bsr.getShadowCamera();
+        ShadowUtil.updateFrustumPoints2(shadowCam, points);
     }
     
     /**
@@ -217,6 +234,16 @@ public class Main extends SimpleApplication {
             }
         }
     };
+    
+    
+    /**
+     * 
+     */
+    public void initShadow() {
+        bsr = new BasicShadowRenderer(assetManager, 512);
+        bsr.setDirection(new Vector3f(-1, -1, -1).normalizeLocal());
+        viewPort.addProcessor(bsr);
+    }
 
     /**
      * 
@@ -286,6 +313,7 @@ public class Main extends SimpleApplication {
         terrain.setLocked(false); // unlock it so we can edit the height
         rootNode.attachChild(terrain);
         terrain.addControl(new RigidBodyControl(0));
+        terrain.setShadowMode(ShadowMode.CastAndReceive);
         bulletAppState.getPhysicsSpace().addAll(terrain);
     }
 
@@ -308,6 +336,7 @@ public class Main extends SimpleApplication {
         playerNode.addControl(playerControl);
         //playerControl.setRestitution(0.001f);
         playerControl.setFriction(12f);
+        playerNode.setShadowMode(ShadowMode.CastAndReceive);
         bulletAppState.getPhysicsSpace().add(playerControl);
     }
 
