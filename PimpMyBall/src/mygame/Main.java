@@ -197,7 +197,7 @@ public class Main extends SimpleApplication {
         playerControl.setAngularVelocity(walkDirection.mult(10f));
         
         //For the shadow
-        Camera shadowCam = bsr.getShadowCamera();
+        Camera shadowCam = bsr.getShadowCamera(); //Behövs denna?
         ShadowUtil.updateFrustumPoints2(shadowCam, points);
     }
     
@@ -241,7 +241,7 @@ public class Main extends SimpleApplication {
      */
     public void initShadow() {
         bsr = new BasicShadowRenderer(assetManager, 512);
-        bsr.setDirection(new Vector3f(-1, -1, -1).normalizeLocal());
+        bsr.setDirection(new Vector3f(-0.5f,-.5f,-.5f).normalizeLocal());
         viewPort.addProcessor(bsr);
     }
 
@@ -261,7 +261,7 @@ public class Main extends SimpleApplication {
     private void initLighting() {
         // Create directional light
         DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(-0.08f, -0.4f, -0.9f).normalizeLocal());
+        directionalLight.setDirection(new Vector3f(-0.5f,-.5f,-.5f).normalizeLocal());
         directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
         rootNode.addLight(directionalLight);
         //Create ambient light
