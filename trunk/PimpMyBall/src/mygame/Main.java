@@ -55,6 +55,7 @@ import com.jme3.light.DirectionalLight;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.FastMath;
 import com.jme3.math.Matrix3f;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
@@ -160,25 +161,32 @@ public class Main extends SimpleApplication {
     public void simpleUpdate(float tpf) {
         Vector3f camDir = cam.getDirection().clone();
         Vector3f camLeft = cam.getLeft().clone();
-        camDir.y = 0;
+        camDir.y = 0;   // Dessa två gör ingen skillnad.
         camLeft.y = 0;
         walkDirection.set(0, 0, 0);
 
         if (left) {
-            walkDirection.addLocal(camLeft);
-        }
-        if (right) {
-            walkDirection.addLocal(camLeft.negate());
-        }
-        if (up) {
-            walkDirection.addLocal(camDir);
-        }
-        if (down) {
+            //walkDirection.addLocal(camLeft);
             walkDirection.addLocal(camDir.negate());
         }
-       // playerControl.setWalkDirection(walkDirection);
+        if (right) {
+            //walkDirection.addLocal(camLeft.negate());
+            walkDirection.addLocal(camDir);
+        }
+        if (up) {
+            //walkDirection.addLocal(camDir);
+            walkDirection.addLocal(camLeft);
+        }
+        if (down) {
+            //walkDirection.addLocal(camDir.negate());
+            walkDirection.addLocal(camLeft.negate());
+        }
         playerControl.setAngularVelocity(walkDirection.mult(10f));
     }
+    
+    /**
+     * 
+     */
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
@@ -210,12 +218,19 @@ public class Main extends SimpleApplication {
         }
     };
 
+    /**
+     * 
+     * @param oldLoc 
+     */
     private void testCollision(Vector3f oldLoc) {
         if (terrain.collideWith(selectedCollisionObject.getWorldBound(), new CollisionResults()) > 0) {
             selectedCollisionObject.setLocalTranslation(oldLoc);
         }
     }
 
+    /**
+     * 
+     */
     private void initLighting() {
         // Create directional light
         DirectionalLight directionalLight = new DirectionalLight();
@@ -228,16 +243,18 @@ public class Main extends SimpleApplication {
         rootNode.addLight(ambientLight);
     }
 
+    /**
+     * 
+     */
     private void initCamera() {
         flyCam.setEnabled(false);
         ChaseCamera camera = new ChaseCamera(cam, playerNode, inputManager);
         camera.setDragToRotate(false);
-        
-        // Make the camera follow the avatar.
-        //this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
-	//this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
 
+    /**
+     * 
+     */
     private void setUpTerrain() {
         matRock = new Material(assetManager, "Common/MatDefs/Terrain/Terrain.j3md");
         matRock.setTexture("Alpha", assetManager.loadTexture("Textures/Terrain/splat/alphamap.png"));
@@ -272,6 +289,9 @@ public class Main extends SimpleApplication {
         bulletAppState.getPhysicsSpace().addAll(terrain);
     }
 
+    /**
+     * 
+     */
     private void initPlayer() {
         float radius = 2;
         playerNode = new Node("Player");
@@ -281,7 +301,7 @@ public class Main extends SimpleApplication {
         Material material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
         material.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
         playerGeometry.setMaterial(material);
-        playerNode.setLocalTranslation(new Vector3f(0, 100, 0));
+        playerNode.setLocalTranslation(new Vector3f(0, 20, 0));
         SphereCollisionShape sphereShape = new SphereCollisionShape(radius);
         float stepHeight = 500f;
         playerControl = new RigidBodyControl(sphereShape, stepHeight);
@@ -291,12 +311,17 @@ public class Main extends SimpleApplication {
         bulletAppState.getPhysicsSpace().add(playerControl);
     }
 
+    /**
+     * 
+     */
     private void initKeys() {
         inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
         inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addListener(actionListener, "CharLeft", "CharRight");
-        inputManager.addListener(actionListener, "CharForward", "CharBackward");
+        inputManager.addListener(actionListener, "CharLeft");
+        inputManager.addListener(actionListener, "CharRight");
+        inputManager.addListener(actionListener, "CharForward");
+        inputManager.addListener(actionListener, "CharBackward");
     }
 }
