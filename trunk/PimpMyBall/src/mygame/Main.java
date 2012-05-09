@@ -40,7 +40,6 @@ import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
 import com.jme3.audio.AudioNode;
 import com.jme3.bullet.collision.shapes.CapsuleCollisionShape;
-import com.jme3.bullet.control.CharacterControl;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
@@ -103,7 +102,7 @@ public class Main extends SimpleApplication {
     private Geometry selectedCollisionObject;
     private Node playerNode;
     private Geometry playerGeometry;
-    private CharacterControl playerControl;
+    private RigidBodyControl playerControl;
     private Vector3f walkDirection = new Vector3f(0, 0, 0);
     private boolean left = false,
             right = false,
@@ -132,11 +131,13 @@ public class Main extends SimpleApplication {
         backgroundMusic.play();
         
         /** Load a Ninja model (OgreXML + material + texture from test_data) */
-        Spatial ninja = assetManager.loadModel("Models/chess.obj");
-        ninja.scale(0.05f, 0.05f, 0.05f);
-        ninja.rotate(0.0f, -3.0f, 0.0f);
-        ninja.setLocalTranslation(0.0f, 20.0f, 0.0f);
-        rootNode.attachChild(ninja);
+        Spatial chessBoard = assetManager.loadModel("Models/chess.obj");
+        /*Material chessMaterial = assetManager.loadMaterial("Models/chess.mtl");
+        chessBoard.setMaterial(chessMaterial);*/
+        chessBoard.scale(0.05f, 0.05f, 0.05f);
+        chessBoard.rotate(0.0f, -3.0f, 0.0f);
+        chessBoard.setLocalTranslation(0.0f, 20.0f, 0.0f);
+        rootNode.attachChild(chessBoard);
 
         initKeys();
         initLighting();
@@ -157,8 +158,8 @@ public class Main extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
-        Vector3f camDir = cam.getDirection().clone().multLocal(0.25f);
-        Vector3f camLeft = cam.getLeft().clone().multLocal(0.25f);
+        Vector3f camDir = cam.getDirection().clone();
+        Vector3f camLeft = cam.getLeft().clone();
         camDir.y = 0;
         camLeft.y = 0;
         walkDirection.set(0, 0, 0);
@@ -175,7 +176,8 @@ public class Main extends SimpleApplication {
         if (down) {
             walkDirection.addLocal(camDir.negate());
         }
-        playerControl.setWalkDirection(walkDirection);
+       // playerControl.setWalkDirection(walkDirection);
+        playerControl.setAngularVelocity(walkDirection.mult(10f));
     }
     private ActionListener actionListener = new ActionListener() {
 
@@ -224,7 +226,6 @@ public class Main extends SimpleApplication {
         AmbientLight ambientLight = new AmbientLight();
         ambientLight.setColor((ColorRGBA.White).mult(2.5f));
         rootNode.addLight(ambientLight);
-
     }
 
     private void initCamera() {
@@ -233,8 +234,8 @@ public class Main extends SimpleApplication {
         camera.setDragToRotate(false);
         
         // Make the camera follow the avatar.
-        this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
-	this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
+        //this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
+	//this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
 
     private void setUpTerrain() {
@@ -282,9 +283,11 @@ public class Main extends SimpleApplication {
         playerGeometry.setMaterial(material);
         playerNode.setLocalTranslation(new Vector3f(0, 100, 0));
         SphereCollisionShape sphereShape = new SphereCollisionShape(radius);
-        float stepHeight = radius / 3f;
-        playerControl = new CharacterControl(sphereShape, stepHeight);
+        float stepHeight = 500f;
+        playerControl = new RigidBodyControl(sphereShape, stepHeight);
         playerNode.addControl(playerControl);
+        //playerControl.setRestitution(0.001f);
+        playerControl.setFriction(12f);
         bulletAppState.getPhysicsSpace().add(playerControl);
     }
 
