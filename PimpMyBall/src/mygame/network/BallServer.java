@@ -1,4 +1,4 @@
-package mygame;
+package mygame.network;
 
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
@@ -17,6 +17,7 @@ import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.ConnectionListener;
+import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
@@ -35,6 +36,7 @@ import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.WrapMode;
 import com.jme3.util.SkyFactory;
 import java.util.ArrayList;
+import java.util.concurrent.Callable;
 
 /**
  * Creates a terrain object and a collision node to go with it. Then
@@ -77,7 +79,8 @@ public class BallServer extends SimpleApplication {
     public static final int PORT = 5110;
     public static final int UDP_PORT = 5110;
     private static int timeCounter = 0;
-    private static ArrayList<HostedConnection> hostedConnections;
+    private static ArrayList<HostedConnection> hostedConnections = new ArrayList<HostedConnection>();
+    private static ArrayList<HostedConnection> evenHosts = new ArrayList<HostedConnection>();
 
     public static void main(String[] args) throws Exception {
         initializeClasses();
@@ -111,18 +114,20 @@ public class BallServer extends SimpleApplication {
         ConnectionListener connectionListener = new ConnectionListener() {
 
             public void connectionAdded(Server server, HostedConnection conn) {
-                System.out.println("Joining: " + conn);
-                //hostedConnections.add(conn);
+                hostedConnections.add(conn);
+                if (conn.getId() % 2 == 0) { // Just a random test to use when filtering...
+                    evenHosts.add(conn);
+                }
             }
 
             public void connectionRemoved(Server server, HostedConnection conn) {
-                System.out.println("Bye bye, " + conn);
-                //hostedConnections.remove(conn);
+                hostedConnections.remove(conn);
             }
         };
 
         server.addConnectionListener(connectionListener);
         // Keep running basically forever
+
         synchronized (NAME) {
             NAME.wait();
         }
@@ -136,7 +141,7 @@ public class BallServer extends SimpleApplication {
 
         //Play sound
         AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
-        backgroundMusic.setVolume(2);
+        backgroundMusic.setVolume(0);
         backgroundMusic.play();
 
         initKeys();
@@ -163,11 +168,17 @@ public class BallServer extends SimpleApplication {
             Vector3f pos = playerNode.getLocalTranslation();
             Vector3f acc = Vector3f.ZERO;
             BallMessage ballMessage = new BallMessage(pos, walkDirection, acc);
-            ballMessage.setReliable(true);
-            server.broadcast(ballMessage);
+            ballMessage.setReliable(false);
+            server.broadcast(Filters.in(evenHosts), ballMessage);
             System.out.println("Bredkast!");
         }
         timeCounter++;
+    }
+
+    @Override
+    public void destroy() {
+        server.close();
+        super.destroy();
     }
 
     @Override
