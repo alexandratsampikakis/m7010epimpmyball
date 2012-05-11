@@ -29,9 +29,8 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package mygame;
+package mygame.network;
 
-import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
@@ -41,6 +40,7 @@ import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import javax.swing.*;
+import mygame.network.ChatServer.ChatMessage;
 
 /**
  *  A simple test chat server.  When SM implements a set
@@ -49,27 +49,27 @@ import javax.swing.*;
  *  @version   $Revision: 8843 $
  *  @author    Paul Speed
  */
-public class BallClient extends JFrame {
+public class ChatClient extends JFrame {
 
     private Client client;
-    private JEditorPane messageLog;
-    private StringBuilder messages = new StringBuilder();
+    private JEditorPane chatLog;
+    private StringBuilder chatMessages = new StringBuilder();
     private JTextField nameField;
     private JTextField messageField;
 
-    public BallClient(String host) throws IOException {
-        super("jME3 Test Message Client - to:" + host);
+    public ChatClient(String host) throws IOException {
+        super("jME3 Test Chat Client - to:" + host);
 
         // Build out the UI       
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(800, 600);
 
-        messageLog = new JEditorPane();
-        messageLog.setEditable(false);
-        messageLog.setContentType("text/html");
-        messageLog.setText("<html><body>");
+        chatLog = new JEditorPane();
+        chatLog.setEditable(false);
+        chatLog.setContentType("text/html");
+        chatLog.setText("<html><body>");
 
-        getContentPane().add(new JScrollPane(messageLog), "Center");
+        getContentPane().add(new JScrollPane(chatLog), "Center");
 
         // A crude form       
         JPanel p = new JPanel();
@@ -87,9 +87,9 @@ public class BallClient extends JFrame {
 
         getContentPane().add(p, "South");
 
-        client = Network.connectToServer(BallServer.NAME, BallServer.VERSION,
-                host, BallServer.PORT, BallServer.UDP_PORT);
-        client.addMessageListener(new ClientMessageListener(), BallMessage.class);
+        client = Network.connectToServer(ChatServer.NAME, ChatServer.VERSION,
+                host, ChatServer.PORT, ChatServer.UDP_PORT);
+        client.addMessageListener(new ChatHandler(), ChatMessage.class);
         client.start();
     }
 
@@ -99,42 +99,38 @@ public class BallClient extends JFrame {
     }
 
     public static void main(String... args) throws Exception {
-        BallServer.initializeClasses();
+        ChatServer.initializeClasses();
 
         // Grab a host string from the user
-        String s = getString(null, "Host Info", "Enter ball host:", "localhost");
+        String s = getString(null, "Host Info", "Enter chat host:", "localhost");
         if (s == null) {
             System.out.println("User cancelled.");
             return;
         }
 
-        BallClient test = new BallClient(s);
+        ChatClient test = new ChatClient(s);
         test.setVisible(true);
     }
 
-    private class ClientMessageListener implements MessageListener<Client> {
-        public void messageReceived(Client source, Message m) {
-            BallMessage message = (BallMessage) m;
+    private class ChatHandler implements MessageListener<Client> {
 
-            System.out.println("Received:" + message);
+        public void messageReceived(Client source, Message m) {
+            ChatMessage chat = (ChatMessage) m;
+
+            System.out.println("Received:" + chat);
 
             // One of the least efficient ways to add text to a
             // JEditorPane
-            //messages.append("<font color='#00a000'>" + (m.isReliable() ? "TCP" : "UDP") + "</font>");
-            //messages.append(" -- <font color='#000080'><b>" + message.getPosition() + "</b></font> : ");
-            messages.append("Position: ").append(message.getPosition());
-            messages.append("<br />");
-            messages.append("Velocity: ").append(message.getVelocity());
-            messages.append("<br />");
-            messages.append("Acceleration: ").append(message.getAcceleration());
-            messages.append("<br />");
-            messages.append("<br />");
-            String s = "<html><body>" + messages + "</body></html>";
-            messageLog.setText(s);
+            chatMessages.append("<font color='#00a000'>" + (m.isReliable() ? "TCP" : "UDP") + "</font>");
+            chatMessages.append(" -- <font color='#000080'><b>" + chat.getName() + "</b></font> : ");
+            chatMessages.append(chat.getMessage());
+            chatMessages.append("<br />");
+            String s = "<html><body>" + chatMessages + "</body></html>";
+            chatLog.setText(s);
 
             // Set selection to the end so that the scroll panel will scroll
             // down.
-            messageLog.select(s.length(), s.length());
+            chatLog.select(s.length(), s.length());
         }
     }
 
@@ -151,11 +147,10 @@ public class BallClient extends JFrame {
             String name = nameField.getText();
             String message = messageField.getText();
 
-            Vector3f zeroVector = new Vector3f(0f,0f,0f);
-            BallMessage ballMessage = new BallMessage(zeroVector, zeroVector, zeroVector);
-            ballMessage.setReliable(reliable);
-            System.out.println("Sending:" + ballMessage);
-            client.send(ballMessage);
+            ChatMessage chat = new ChatMessage(name, message);
+            chat.setReliable(reliable);
+            System.out.println("Sending:" + chat);
+            client.send(chat);
         }
     }
 }
