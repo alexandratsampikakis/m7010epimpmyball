@@ -1,41 +1,13 @@
-/*
- * Copyright (c) 2009-2010 jMonkeyEngine
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *
- * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
- *
- * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
- *   documentation and/or other materials provided with the distribution.
- *
- * * Neither the name of 'jMonkeyEngine' nor the names of its contributors
- *   may be used to endorse or promote products derived from this software
- *   without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+
 package mygame;
 
 import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
 import com.jme3.audio.AudioNode;
+import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
+import com.jme3.bullet.util.CollisionShapeFactory;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
 import com.jme3.effect.ParticleEmitter;
@@ -50,11 +22,13 @@ import com.jme3.light.PointLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Ray;
+import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
@@ -80,8 +54,11 @@ public class Main extends SimpleApplication {
 
     TerrainQuad terrain;
     Node terrainPhysicsNode;
+    Node treeNode;
     Material matRock;
     Material matWire;
+    Material matTree;
+    Spatial tree;
     
     private BasicShadowRenderer bsr;
     private Vector3f[] points;
@@ -90,7 +67,6 @@ public class Main extends SimpleApplication {
         for (int i = 0; i < points.length; i++) points[i] = new Vector3f();
     }
     
-    boolean wireframe = false;
     protected BitmapText hintText;
     private PointLight pl;
     private Geometry lightMdl;
@@ -99,9 +75,11 @@ public class Main extends SimpleApplication {
     private Geometry collisionSphere;
     private Geometry collisionBox;
     private Geometry selectedCollisionObject;
+    private Geometry treeGeom;
     private Node playerNode;
     private Geometry playerGeometry;
     private RigidBodyControl playerControl;
+    private RigidBodyControl treeControl;
     private Vector3f walkDirection = new Vector3f(0, 0, 0);
     private boolean left = false,
             right = false,
@@ -285,6 +263,14 @@ public class Main extends SimpleApplication {
         terrain.addControl(new RigidBodyControl(0));
         terrain.setShadowMode(ShadowMode.CastAndReceive);
         bulletAppState.getPhysicsSpace().addAll(terrain);
+        
+        createTrees(-300, 500, 7, 100, 2);
+        createTrees(-210, 315, 5, 50, 2);
+        createTrees(-20, 130, 5, 50, 5);
+        createTrees(-50, 0, 10, 250, 5);
+        createTrees(-150, 10, 10, 0, 6);
+        createTrees(-100, 150, 15, 100, 5);
+        createTrees(-250, 200, 8, 200, 3);
     }
 
     /**
@@ -311,6 +297,28 @@ public class Main extends SimpleApplication {
         
         smoke = ParticleFactory.getSmoke(assetManager, 2f);
         playerNode.attachChild(smoke);
+    }
+    
+    /**
+     * 
+     * @param xTree
+     * @param zTree
+     * @param sTree
+     * @param rTree 
+     */
+    public void createTrees(float xTree, float zTree, float sTree, float rTree, int toHigherTree) {
+        tree = assetManager.loadModel("Models/Tree/Tree.mesh.xml");
+        Vector2f xz = new Vector2f(xTree, zTree);
+        float yTree = terrain.getHeightmapHeight(xz)+toHigherTree;
+        tree.setLocalTranslation(xTree, yTree, zTree);
+        tree.scale(sTree);
+        tree.rotate(0, rTree, 0);
+        
+        CollisionShape treeCollisionShape = CollisionShapeFactory.createMeshShape((Node) tree);
+        treeControl = new RigidBodyControl(treeCollisionShape, 0);
+        tree.addControl(treeControl);
+        terrain.attachChild(tree);
+        bulletAppState.getPhysicsSpace().add(treeControl);
     }
 
     /**
