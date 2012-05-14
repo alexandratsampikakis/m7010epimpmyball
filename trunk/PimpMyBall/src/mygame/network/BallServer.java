@@ -1,16 +1,10 @@
 package mygame.network;
 
-import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
-import com.jme3.audio.AudioNode;
 import com.jme3.bullet.control.RigidBodyControl;
-import com.jme3.collision.CollisionResults;
 import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
-import com.jme3.input.KeyInput;
-import com.jme3.input.controls.ActionListener;
-import com.jme3.input.controls.KeyTrigger;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
@@ -26,7 +20,6 @@ import com.jme3.network.Server;
 import com.jme3.network.serializing.Serializer;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.shape.Sphere;
 import com.jme3.terrain.geomipmap.TerrainLodControl;
 import com.jme3.terrain.heightmap.AbstractHeightMap;
 import com.jme3.terrain.heightmap.ImageBasedHeightMap;
@@ -65,68 +58,24 @@ public class BallServer extends SimpleApplication {
     private Geometry collisionSphere;
     private Geometry collisionBox;
     private Geometry selectedCollisionObject;
-    private Node playerNode;
-    private Geometry playerGeometry;
-    private RigidBodyControl playerControl;
-    private Vector3f walkDirection = new Vector3f(0, 0, 0);
-    private boolean left = false,
-            right = false,
-            up = false,
-            down = false;
     private static Server server;
     public static final String NAME = "Test Ball Server";
     public static final int VERSION = 1;
     public static final int PORT = 5110;
     public static final int UDP_PORT = 5110;
     private static int timeCounter = 0;
-    private static ArrayList<HostedConnection> hostedConnections = new ArrayList<HostedConnection>();
-    private static ArrayList<HostedConnection> evenHosts = new ArrayList<HostedConnection>();
+    //private static ArrayList<HostedConnection> hostedConnections = new ArrayList<HostedConnection>();
+    private static ArrayList<User> users = new ArrayList<User>();
 
     public static void main(String[] args) throws Exception {
         initializeClasses();
         BallServer app = new BallServer();
         app.start();
+        app.setPauseOnLostFocus(false);
 
         // Use this to test the client/server name version check
         server = Network.createServer(NAME, VERSION, PORT, UDP_PORT);
         server.start();
-
-        MessageListener messageListener = new MessageListener<HostedConnection>() {
-
-            public void messageReceived(HostedConnection source, Message m) {
-                if (m instanceof BallMessage) {
-                    // Keep track of the name just in case we 
-                    // want to know it for some other reason later and it's
-                    // a good example of session data
-                    //source.setAttribute("name", ((BallMessage) m).getName());
-                    System.out.println("Broadcasting:" + m + "  reliable:" + m.isReliable());
-                    // Just rebroadcast... the reliable flag will stay the
-                    // same so if it came in on UDP it will go out on that too
-                    source.getServer().broadcast(m);
-                } else {
-                    System.err.println("Received odd message:" + m);
-                }
-            }
-        };
-
-        server.addMessageListener(messageListener);
-
-        ConnectionListener connectionListener = new ConnectionListener() {
-
-            public void connectionAdded(Server server, HostedConnection conn) {
-                hostedConnections.add(conn);
-                if (conn.getId() % 2 == 0) { // Just a random test to use when filtering...
-                    evenHosts.add(conn);
-                }
-            }
-
-            public void connectionRemoved(Server server, HostedConnection conn) {
-                hostedConnections.remove(conn);
-            }
-        };
-
-        server.addConnectionListener(connectionListener);
-        // Keep running basically forever
 
         synchronized (NAME) {
             NAME.wait();
@@ -135,44 +84,87 @@ public class BallServer extends SimpleApplication {
 
     @Override
     public void simpleInitApp() {
+
+        MessageListener messageListener = new MessageListener<HostedConnection>() {
+
+            public void messageReceived(HostedConnection conn, Message message) {
+                if (message instanceof BallMessage) {
+                    int id = conn.getId();
+                    BallServer.this.enqueue(new MyCallable((BallMessage) message, conn));
+                } else {
+                    System.err.println("Received odd message:" + message);
+                }
+            }
+        };
+
+
+        server.addMessageListener(messageListener);
+
+
+        ConnectionListener connectionListener = new ConnectionListener() {
+
+            public void connectionAdded(Server server, HostedConnection conn) {
+                Ball ball = new Ball(assetManager);
+                rootNode.attachChild(ball);
+                int id = conn.getId();
+                users.add(new User(ball, conn));
+                bulletAppState.getPhysicsSpace().add(ball.getControl());
+                /*/OSPARVÄRT//////////*/ Vector3f pos = new Vector3f(100f, 200f, 0f);
+                /*/OSPARVÄRT//////////*/ ball.getControl().setPhysicsLocation(pos);
+                /*/OSPARVÄRT//////////*/ ChaseCamera camera = new ChaseCamera(cam, ball.getGeometry(), inputManager);
+                /*/OSPARVÄRT//////////*/ camera.setUpVector(Vector3f.UNIT_Y);
+            }
+
+            public void connectionRemoved(Server server, HostedConnection conn) {
+                for (User user : users) {
+                    if (conn == user.getHostedConnection()) {
+                        users.remove(user);
+                    }
+                }
+            }
+        };
+
+        server.addConnectionListener(connectionListener);
+        // Keep running basically forever
+
         //Creating a sky
         rootNode.attachChild(SkyFactory.createSky(
                 assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
-
-        //Play sound
-        AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
-        backgroundMusic.setVolume(0);
-        backgroundMusic.play();
-
-        initKeys();
-        initLighting();
 
         bulletAppState = new BulletAppState();
         bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(bulletAppState);
 
-        initPlayer();
-        initCamera();
         setUpTerrain();
+        initCamera();
+        initLighting();
+
     }
 
     @Override
     public void update() {
         super.update();
-        broadcastData();
+        if (timeCounter > 5) {
+            timeCounter = 0;
+            broadcastData();
+        }
+        timeCounter++;
+
     }
 
     private void broadcastData() {
-        if (timeCounter > 100) {
-            timeCounter = 0;
-            Vector3f pos = playerNode.getLocalTranslation();
-            Vector3f acc = Vector3f.ZERO;
-            BallMessage ballMessage = new BallMessage(pos, walkDirection, acc);
+        Vector3f pos = Vector3f.ZERO;
+        Vector3f vel = Vector3f.ZERO;
+        Vector3f acc = Vector3f.ZERO;
+        for (User user : users) {
+            HostedConnection host = user.getHostedConnection();
+            Ball ball = user.getBall();
+            pos = ball.getControl().getPhysicsLocation();
+            vel = ball.getControl().getLinearVelocity();
+            BallMessage ballMessage = new BallMessage(pos, vel, Vector3f.ZERO);
             ballMessage.setReliable(false);
-            server.broadcast(Filters.in(evenHosts), ballMessage);
-            System.out.println("Bredkast!");
+            server.broadcast(ballMessage);
         }
-        timeCounter++;
     }
 
     @Override
@@ -183,83 +175,30 @@ public class BallServer extends SimpleApplication {
 
     @Override
     public void simpleUpdate(float tpf) {
-        Vector3f camDir = cam.getDirection().clone();
-        Vector3f camLeft = cam.getLeft().clone();
-        camDir.y = 0;
-        camLeft.y = 0;
-        walkDirection.set(0, 0, 0);
-
-        if (left) {
-            walkDirection.addLocal(camLeft);
-        }
-        if (right) {
-            walkDirection.addLocal(camLeft.negate());
-        }
-        if (up) {
-            walkDirection.addLocal(camDir);
-        }
-        if (down) {
-            walkDirection.addLocal(camDir.negate());
-        }
-        playerControl.setAngularVelocity(walkDirection.mult(10f));
     }
-    private ActionListener actionListener = new ActionListener() {
 
-        public void onAction(String binding, boolean isPressed, float tpf) {
-            if (binding.equals("CharLeft")) {
-                if (isPressed) {
-                    left = true;
-                } else {
-                    left = false;
-                }
-            } else if (binding.equals("CharRight")) {
-                if (isPressed) {
-                    right = true;
-                } else {
-                    right = false;
-                }
-            } else if (binding.equals("CharForward")) {
-                if (isPressed) {
-                    up = true;
-                } else {
-                    up = false;
-                }
-            } else if (binding.equals("CharBackward")) {
-                if (isPressed) {
-                    down = true;
-                } else {
-                    down = false;
+    private class MyCallable implements Callable {
+
+        BallMessage ballMessage;
+        HostedConnection conn;
+
+        public MyCallable(BallMessage ballMessage, HostedConnection conn) {
+            this.ballMessage = ballMessage;
+            this.conn = conn;
+        }
+
+        // Set the velocity of the player
+        public Object call() {
+            for (User user : users) {
+                //Det här ska ju göras snyggare sen...
+                if (user.getHostedConnection() == conn) {
+                    RigidBodyControl control = user.getBall().getControl();
+                    Vector3f newSpeed = ballMessage.getVelocity().mult(10f);
+                    control.setAngularVelocity(newSpeed);
                 }
             }
+            return ballMessage;
         }
-    };
-
-    private void testCollision(Vector3f oldLoc) {
-        if (terrain.collideWith(selectedCollisionObject.getWorldBound(), new CollisionResults()) > 0) {
-            selectedCollisionObject.setLocalTranslation(oldLoc);
-        }
-    }
-
-    private void initLighting() {
-        // Create directional light
-        DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(-0.08f, -0.4f, -0.9f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
-        rootNode.addLight(directionalLight);
-        //Create ambient light
-        AmbientLight ambientLight = new AmbientLight();
-        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
-        rootNode.addLight(ambientLight);
-    }
-
-    private void initCamera() {
-        flyCam.setEnabled(false);
-        ChaseCamera camera = new ChaseCamera(cam, playerNode, inputManager);
-        camera.setDragToRotate(false);
-
-        // Make the camera follow the avatar.
-        //this.cam.setLocation( playerGeometry.localToWorld( new Vector3f( 0, 0 /* units above car*/, 20 /* units behind car*/ ), null));
-        //this.cam.lookAt(this.playerGeometry.getWorldTranslation(), Vector3f.UNIT_Y);
     }
 
     private void setUpTerrain() {
@@ -296,31 +235,20 @@ public class BallServer extends SimpleApplication {
         bulletAppState.getPhysicsSpace().addAll(terrain);
     }
 
-    private void initPlayer() {
-        float radius = 2;
-        playerNode = new Node("Player");
-        playerGeometry = new Geometry("PlayerGeometry", new Sphere(100, 100, radius));
-        rootNode.attachChild(playerNode);
-        playerNode.attachChild(playerGeometry);
-        Material material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
-        playerGeometry.setMaterial(material);
-        playerNode.setLocalTranslation(new Vector3f(0, 100, 0));
-        SphereCollisionShape sphereShape = new SphereCollisionShape(radius);
-        float stepHeight = 500f;
-        playerControl = new RigidBodyControl(sphereShape, stepHeight);
-        playerNode.addControl(playerControl);
-        //playerControl.setRestitution(0.001f);
-        playerControl.setFriction(12f);
-        bulletAppState.getPhysicsSpace().add(playerControl);
+    private void initLighting() {
+        // Create directional light
+        DirectionalLight directionalLight = new DirectionalLight();
+        directionalLight.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
+        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
+        rootNode.addLight(directionalLight);
+        //Create ambient light
+        AmbientLight ambientLight = new AmbientLight();
+        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
+        rootNode.addLight(ambientLight);
     }
 
-    private void initKeys() {
-        inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
-        inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
-        inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
-        inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addListener(actionListener, "CharLeft", "CharRight");
-        inputManager.addListener(actionListener, "CharForward", "CharBackward");
+    private void initCamera() {
+        flyCam.setEnabled(true);
+        flyCam.setMoveSpeed(20f);
     }
 }
