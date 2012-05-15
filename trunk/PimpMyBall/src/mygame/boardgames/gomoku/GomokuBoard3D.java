@@ -16,25 +16,30 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.texture.Texture;
+import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
-import mygame.boardgames.MoveListener;
 
 /**
  *
  * @author Jimmy
  */
-public class GomokuNode extends Node implements MoveListener {
+public class GomokuBoard3D extends Node implements GomokuGame.Listener {
     
     private Geometry[][] grid;
     private Material matRed, matBlue, matGreen, matWhite;
     private int numRows, numCols;
     
-    public GomokuNode(AssetManager manager, GridSize size) {
+    public GomokuBoard3D(AssetManager manager, GomokuGame game) {
+        this(manager, game.getGrid().getSize());
+        game.addListener(this);
+    }
+    
+    public GomokuBoard3D(AssetManager manager, GridSize size) {
         this(manager, size.rows, size.cols);
     }
     
-    public GomokuNode(AssetManager manager, int ROWS, int COLS) {
+    public GomokuBoard3D(AssetManager manager, int ROWS, int COLS) {
         
         initLights();
         initMaterials(manager);
@@ -42,9 +47,6 @@ public class GomokuNode extends Node implements MoveListener {
         numRows = ROWS;
         numCols = COLS;
         grid = new Geometry[ROWS][COLS];
-        
-        /*float scale = 0.5f;
-        rootNode.setLocalScale(scale);*/
         
         float offset = 0.125f;
         float gridSize = 1.0f;
@@ -181,7 +183,7 @@ public class GomokuNode extends Node implements MoveListener {
     private void initLights() {
         // We add light so we see the scene
         AmbientLight al = new AmbientLight();
-        al.setColor(ColorRGBA.White.mult(0.25f));
+        al.setColor(ColorRGBA.White.mult(0.7f));
         addLight(al);
 
         DirectionalLight dl = new DirectionalLight();
@@ -199,16 +201,17 @@ public class GomokuNode extends Node implements MoveListener {
     
     
     @Override
-    public void onMove(CellColor color, GridPoint p) {
-        // TODO
-        // Implementera! G√∂r s√• att man slipper g√∂ra
-        // dubbelt arbete varje g√•ng ett drag g√∂rs
+    public void onMove(GomokuGame game, CellColor color, GridPoint p) {
+        setColor(p, color);
     }
 
     @Override
-    public void onWin(WinningRow wr) {
-        
-        
-        
+    public void onWin(GomokuGame game, WinningRow wr) {
+        displayWinningRow(wr);
+    }
+
+    @Override
+    public void onReset(GomokuGame game) {
+        reset();
     }
 }

@@ -1,3 +1,7 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package mygame.boardgames.network;
 
 import mygame.boardgames.network.GomokuServer;
@@ -47,78 +51,43 @@ import mygame.boardgames.GridPoint;
 import mygame.boardgames.Select3D;
 import mygame.boardgames.Select3D;
 import mygame.boardgames.gomoku.GomokuBoard3D;
+import mygame.boardgames.gomoku.player.AIPlayer;
 import mygame.boardgames.gomoku.player.GomokuPlayer;
 import mygame.boardgames.gomoku.player.LocalPlayer;
 import mygame.boardgames.gomoku.player.RemotePlayerClient;
 import mygame.boardgames.gomoku.player.RemotePlayerServer;
 
+
 /**
- * test
+ *
  * @author Jimmy
  */
-public class GomokuClient extends SimpleApplication implements ActionListener {
+public class LocalGomokuTest extends SimpleApplication implements ActionListener {
 
     private static boolean USE_CURSOR = false;
     
-    private GomokuBoard3D board;
+    private GomokuBoard3D board = null;
     private GomokuGame game;
-    private Client client;
-    
-    private GomokuPlayer remotePlayer = null;
-    private GomokuPlayer localPlayer = new LocalPlayer();
-    
+    private GomokuPlayer turn;
     
     public static void main(String[] args) throws Exception {
-        
-        GomokuServer.initializeClasses();
-
-        // Grab a host string from the user
-        String s = getString(null, "Host Info", "Enter gomoku host:", "localhost");
-        if (s == null) {
-            System.out.println("User cancelled.");
-            return;
-        }
-
-        GomokuClient client = new GomokuClient();
-        client.setHost(s);
-        client.start();
-    }
-
-    public static String getString(Component owner, String title, String message, String initialValue) {
-        return (String) JOptionPane.showInputDialog(
-                owner, message, title, 
-                JOptionPane.PLAIN_MESSAGE,
-                null, null, initialValue);
+        LocalGomokuTest app = new LocalGomokuTest();
+        app.start();
     }
     
-    public void setHost(String host) throws IOException {
-        client = Network.connectToServer(GomokuServer.NAME, GomokuServer.VERSION,
-                host, GomokuServer.PORT, GomokuServer.UDP_PORT);
-        
-        MessageListener<Client> msgListener = new MessageListener<Client>() {
-            public void messageReceived(Client source, Message m) {
-                enqueue(new MessageParser(m));
-            }
-        };
-        client.addMessageListener(msgListener, 
-                GomokuMessage.class, NewGameMessage.class);
-        client.start();
-        
-        // Create the remote player
-        remotePlayer = new RemotePlayerClient(client);
-    }
-    
-    private void startNewGame(NewGameMessage msg) {
+    private void startNewGame() {
         
         // Create a new game as specified by the message
-        game = new GomokuGame(msg);
+        game = new GomokuGame();
         
-        // Add players to the game, in correct order
-        if (msg.isMyTurn()) {
-            game.setPlayers(localPlayer, remotePlayer);
-        } else {
-            game.setPlayers(remotePlayer, localPlayer);
-        }
+        GomokuPlayer p1 = new LocalPlayer();
+        GomokuPlayer p2 = new AIPlayer();
+        game.setPlayers(p1, p2);
+        
+        turn = p1;
+        
+        if (board != null)
+            rootNode.detachChild(board);
         
         // Create a 3D model of the board
         board = new GomokuBoard3D(assetManager, game);
@@ -138,6 +107,8 @@ public class GomokuClient extends SimpleApplication implements ActionListener {
         inputManager.addListener(this, "click", "restart");
         
         initControls();
+        
+        startNewGame();
     }
 
     @Override
@@ -163,13 +134,13 @@ public class GomokuClient extends SimpleApplication implements ActionListener {
 
                     GridPoint p = closest.getGeometry().getUserData("pos");
                     
-                    if (p != null) {
-                        game.tryMove(localPlayer, p);
+                    if (p != null && game.tryMove(turn, p)) {
+                        // turn = turn.getOpponent();
                     }
                 }
                 
             } else if (name.equals("restart")) {
-                resetBoard();
+                startNewGame();
             }
         }
     }
@@ -208,14 +179,6 @@ public class GomokuClient extends SimpleApplication implements ActionListener {
         }
     }
     
-    private void resetBoard() {
-        /*board.reset();
-        grid.reset();
-        ai = new GomokuAI(grid); // , GomokuCellState.BLUE);
-        LOCKED = false;*/
-    }
-    
-    
     private Picture cursor;
     private RawInputListener inputListener = new RawInputListener() {
 
@@ -231,7 +194,7 @@ public class GomokuClient extends SimpleApplication implements ActionListener {
             y = evt.getY(); // += evt.getDY();
 
             // Prevent mouse from leaving screen
-            AppSettings settings = GomokuClient.this.settings;
+            AppSettings settings = LocalGomokuTest.this.settings;
             x = FastMath.clamp(x, 0, settings.getWidth());
             y = FastMath.clamp(y, 0, settings.getHeight());
             
@@ -242,26 +205,5 @@ public class GomokuClient extends SimpleApplication implements ActionListener {
         public void onKeyEvent(KeyInputEvent evt) {}
         public void onTouchEvent(TouchEvent evt) {}
     };
-
-    
-    
-    private class MessageParser implements Callable {
-        
-        private Message msg;
-        
-        public MessageParser(Message msg) {
-            this.msg = msg;
-        }
-        
-        @Override
-        public Object call() throws Exception {
-            if (msg instanceof GomokuMessage) {
-                game.tryMove(remotePlayer, ((GomokuMessage) msg).p);
-            } else if (msg instanceof NewGameMessage) {
-                startNewGame((NewGameMessage) msg);
-            }
-            return msg;
-        }
-    }
-
 }
+

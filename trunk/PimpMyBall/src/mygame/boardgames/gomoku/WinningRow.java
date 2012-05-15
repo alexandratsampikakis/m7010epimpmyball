@@ -16,9 +16,9 @@ public class WinningRow {
     /**
      * Shouldn't be public! :)
      */
-    public CellColor winner = CellColor.NONE;
-    public GridPoint start = new GridPoint(), end = new GridPoint();
-    public Direction direction = Direction.NONE;
+    protected CellColor winner = CellColor.NONE;
+    protected GridPoint start = new GridPoint(), end = new GridPoint();
+    protected Direction direction = Direction.NONE;
     
     
     public WinningRow() {

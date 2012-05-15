@@ -10,18 +10,19 @@ import com.jme3.network.Server;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.network.GomokuMessage;
 import mygame.boardgames.GridPoint;
+import mygame.boardgames.gomoku.CellColor;
 import mygame.boardgames.network.NewGameMessage;
 
 /**
  *
  * @author Jimmy
  */
-public class NetworkPlayer extends GomokuPlayer {
+public class RemotePlayerServer extends GomokuPlayer {
 
     private Server server;
     private HostedConnection connection;
     
-    public NetworkPlayer(Server server, HostedConnection connection) {
+    public RemotePlayerServer(Server server, HostedConnection connection) {
         this.server = server;
         this.connection = connection;
     }
@@ -32,7 +33,7 @@ public class NetworkPlayer extends GomokuPlayer {
     
     @Override
     public void onOpponentMove(GridPoint p) {
-        server.broadcast(Filters.in(connection), new GomokuMessage(p));
+        server.broadcast(Filters.in(connection), new GomokuMessage(game, p));
     }
 
     @Override
@@ -41,11 +42,10 @@ public class NetworkPlayer extends GomokuPlayer {
     }
     
     @Override
-    public void onGameWon(boolean didWin) {
+    public void onGameWon(CellColor winningColor) {   
         
     }
     @Override
-    public void onOpponentSurrender() {
-        
+    public void onOpponentSurrender() {   
     }
 }

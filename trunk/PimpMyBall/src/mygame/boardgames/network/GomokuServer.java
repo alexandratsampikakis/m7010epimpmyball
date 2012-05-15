@@ -49,13 +49,12 @@ import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
 
 import mygame.boardgames.Select3D;
-import mygame.boardgames.gomoku.GomokuNode;
+import mygame.boardgames.gomoku.GomokuBoard3D;
 import mygame.boardgames.gomoku.player.AIPlayer;
 import mygame.boardgames.gomoku.player.GomokuPlayer;
-import mygame.boardgames.gomoku.player.NetworkPlayer;
+import mygame.boardgames.gomoku.player.RemotePlayerServer;
 
 /**
- * test
  * @author Jimmy
  */
 public class GomokuServer {
@@ -97,11 +96,14 @@ public class GomokuServer {
                 if (m instanceof GomokuMessage) {
                     // app.enqueue(app.new MyCallable((GomokuMessage) m));
                     GomokuMessage gm = (GomokuMessage) m;
-                    GomokuGame game = hostedGames.get(gm.gameID);
-                    GomokuPlayer cp = game.getCurrentPlayer();
                     
-                    if (game != null && cp instanceof NetworkPlayer) {
-                        NetworkPlayer p = (NetworkPlayer) cp;
+                    System.out.println("Servern tar emot!! AHA :D id:" + gm.gameID);
+                    
+                    GomokuGame game = hostedGames.get(gm.gameID);
+                    GomokuPlayer cp = (game == null) ? null : game.getCurrentPlayer();
+                    
+                    if (game != null && cp instanceof RemotePlayerServer) {
+                        RemotePlayerServer p = (RemotePlayerServer) cp;
                         if (source == p.getConnection()) {
                             game.tryMove(p, gm.p);
                         }
@@ -130,11 +132,14 @@ public class GomokuServer {
     
     public void startGame(HostedConnection c1, HostedConnection c2) {
         
-        NetworkPlayer p1 = new NetworkPlayer(server, c1);
+        RemotePlayerServer p1 = new RemotePlayerServer(server, c1);
         // AIPlayer p2 = new AIPlayer();
-        NetworkPlayer p2 = new NetworkPlayer(server, c2);
+        RemotePlayerServer p2 = new RemotePlayerServer(server, c2);
         
-        GomokuGame newGame = new GomokuGame(p1, p2, rand.nextBoolean());            
+        GomokuGame newGame = new GomokuGame();
+        boolean first = rand.nextBoolean();
+        newGame.setPlayers(first ? p1 : p2, first ? p2 : p1);
+        
         hostedGames.put(newGame.getID(), newGame);
         newGame.start();
     }
