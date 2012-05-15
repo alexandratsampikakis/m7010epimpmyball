@@ -53,11 +53,7 @@ public class BallServer extends SimpleApplication {
     Material matWire;
     boolean wireframe = false;
     protected BitmapText hintText;
-    private Geometry lightMdl;
     private BulletAppState bulletAppState;
-    private Geometry collisionSphere;
-    private Geometry collisionBox;
-    private Geometry selectedCollisionObject;
     private static Server server;
     public static final String NAME = "Test Ball Server";
     public static final int VERSION = 1;
@@ -164,6 +160,7 @@ public class BallServer extends SimpleApplication {
             BallMessage ballMessage = new BallMessage(pos, vel, Vector3f.ZERO);
             ballMessage.setReliable(false);
             server.broadcast(ballMessage);
+            System.out.println("Transmitting velocity " + ballMessage.getVelocity());
         }
     }
 
