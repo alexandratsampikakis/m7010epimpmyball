@@ -3,15 +3,9 @@ package mygame.network;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import mygame.*;
-import com.jme3.bullet.collision.shapes.SphereCollisionShape;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
-import com.jme3.audio.AudioNode;
-import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
-import com.jme3.bullet.util.CollisionShapeFactory;
-import com.jme3.collision.CollisionResults;
 import com.jme3.effect.ParticleEmitter;
 import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
@@ -23,7 +17,6 @@ import com.jme3.light.DirectionalLight;
 import com.jme3.light.PointLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
@@ -33,8 +26,6 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
-import com.jme3.scene.shape.Sphere;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
 import com.jme3.terrain.geomipmap.TerrainLodControl;
@@ -45,10 +36,7 @@ import com.jme3.terrain.geomipmap.lodcalc.DistanceLodCalculator;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture.WrapMode;
 import com.jme3.util.SkyFactory;
-import java.awt.Component;
-import java.awt.event.ActionEvent;
 import java.util.concurrent.Callable;
-import javax.swing.AbstractAction;
 
 /**
  * Creates a terrain object and a collision node to go with it. Then
@@ -78,13 +66,8 @@ public class TestClient extends SimpleApplication {
     protected BitmapText hintText;
     private PointLight pl;
     private Geometry lightMdl;
-    private Geometry collisionMarker;
     private BulletAppState bulletAppState;
-    private Geometry collisionSphere;
-    private Geometry collisionBox;
-    private Geometry selectedCollisionObject;
     private Ball player;
-    private Geometry playerGeometry;
     private Vector3f walkDirection = new Vector3f(0, 0, 0);
     private boolean left = false,
             right = false,
@@ -109,7 +92,6 @@ public class TestClient extends SimpleApplication {
                     "localhost", BallServer.PORT, BallServer.UDP_PORT);
         } catch (IOException ex) {
             Logger.getLogger(TestClient.class.getName()).log(Level.SEVERE, null, ex);
-            System.out.println("Vad exakt menas med det som står ovanför? Kolla!!");
         }
         client.addMessageListener(new ClientMessageListener(), BallMessage.class);
         client.start();
@@ -130,6 +112,30 @@ public class TestClient extends SimpleApplication {
         initCamera();
         setUpTerrain();
     }
+    
+        private class ClientMessageListener implements MessageListener<Client> {
+        public void messageReceived(Client source, Message message) {
+            if (message instanceof BallMessage) {
+                TestClient.this.enqueue(new MyCallable((BallMessage) message));
+            }
+        }
+    }
+    
+            private class MyCallable implements Callable {
+            BallMessage ballMessage;
+            
+            public MyCallable(BallMessage ballMessage) {
+                this.ballMessage = ballMessage;
+            }
+            
+            // Extract the velocity of the user sending the message.
+            public Object call() {
+                realPosition = ballMessage.getPosition();
+                realVelocity = ballMessage.getVelocity();
+                System.out.println("Receiving velocity: " + ballMessage.getVelocity());
+                return ballMessage;
+            }
+        }
 
     @Override
     public void update() {
@@ -160,7 +166,7 @@ public class TestClient extends SimpleApplication {
         Vector3f currentPosition = player.getGeometry().getLocalTranslation();
         Vector3f newDirection = realPosition.subtract(currentPosition);
         float newDirectionAbs = newDirection.length();
-        if (newDirectionAbs > 1) {  
+        if (newDirectionAbs > 0.5f) {  
             player.getControl().setLinearVelocity(realVelocity.add(newDirection));
         }
 
@@ -172,11 +178,9 @@ public class TestClient extends SimpleApplication {
         if (timeCounter > 5) {
             BallMessage ballMessage = new BallMessage(Vector3f.ZERO, walkDirection, Vector3f.ZERO);
             ballMessage.setReliable(false);
-            System.out.println("Sending velocity: " + ballMessage.getVelocity());
             client.send(ballMessage);
             timeCounter = 0;
         }
-
         timeCounter++;
     }
     private ActionListener actionListener = new ActionListener() {
@@ -300,15 +304,7 @@ public class TestClient extends SimpleApplication {
         viewPort.addProcessor(bsr);
     }
 
-    private class ClientMessageListener implements MessageListener<Client> {
-        public void messageReceived(Client source, Message message) {
-            if (message instanceof BallMessage) {
-                TestClient.this.enqueue(new MyCallable((BallMessage) message));
-            }
-        }
-    }
-
-    private class SendAction extends AbstractAction {
+    /*private class SendAction extends AbstractAction {
         private boolean reliable;
 
         public SendAction(boolean reliable) {
@@ -322,21 +318,5 @@ public class TestClient extends SimpleApplication {
             System.out.println("Sending:" + ballMessage);
             client.send(ballMessage);
         }
-    }
-    
-        private class MyCallable implements Callable {
-            BallMessage ballMessage;
-            
-            public MyCallable(BallMessage ballMessage) {
-                this.ballMessage = ballMessage;
-            }
-            
-            // Extract the velocity of the user sending the message.
-            public Object call() {
-                realPosition = ballMessage.getPosition();
-                realVelocity = ballMessage.getVelocity();
-                System.out.println("Transmitting velocity: " + ballMessage.getVelocity());
-                return ballMessage;
-            }
-        }
+    }*/
 }

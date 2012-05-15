@@ -50,6 +50,11 @@ import javax.swing.*;
  *  @version   $Revision: 8843 $
  *  @author    Paul Speed
  */
+
+
+
+//OBS!!!! OINTRESSANT, GAMMAL KLASS!! KASTA BORT SEN!!!!
+
 public class BallClient extends JFrame {
 
     private Client client;
