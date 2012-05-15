@@ -1,9 +1,9 @@
-package boardgames.network;
+package mygame.boardgames.network;
 
-import boardgames.gomoku.GomokuAI;
-import boardgames.gomoku.CellColor;
-import boardgames.gomoku.GomokuGrid;
-import boardgames.gomoku.WinningRow;
+import mygame.boardgames.gomoku.GomokuAI;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.gomoku.GomokuGrid;
+import mygame.boardgames.gomoku.WinningRow;
 import com.jme3.app.SimpleApplication;
 import com.jme3.collision.CollisionResult;
 import com.jme3.font.BitmapText;
@@ -44,15 +44,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.Callable;
-import boardgames.GomokuGame;
-import boardgames.GridPoint;
-import boardgames.GridSize;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.GridSize;
 
-import boardgames.Select3D;
-import boardgames.gomoku.GomokuNode;
-import boardgames.gomoku.player.AIPlayer;
-import boardgames.gomoku.player.GomokuPlayer;
-import boardgames.gomoku.player.NetworkPlayer;
+import mygame.boardgames.Select3D;
+import mygame.boardgames.gomoku.GomokuNode;
+import mygame.boardgames.gomoku.player.AIPlayer;
+import mygame.boardgames.gomoku.player.GomokuPlayer;
+import mygame.boardgames.gomoku.player.NetworkPlayer;
 
 /**
  * test

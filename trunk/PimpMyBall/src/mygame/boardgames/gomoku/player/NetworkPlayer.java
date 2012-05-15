@@ -2,15 +2,15 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku.player;
+package mygame.boardgames.gomoku.player;
 
 import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Server;
-import boardgames.GomokuGame;
-import boardgames.network.GomokuMessage;
-import boardgames.GridPoint;
-import boardgames.network.NewGameMessage;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.network.GomokuMessage;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.network.NewGameMessage;
 
 /**
  *

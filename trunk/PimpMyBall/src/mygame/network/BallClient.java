@@ -104,6 +104,7 @@ public class BallClient extends JFrame {
                 null, null, initialValue);
     }
 
+
     public static void main(String... args) throws Exception {
         BallServer.initializeClasses();
 
@@ -116,6 +117,12 @@ public class BallClient extends JFrame {
 
         BallClient test = new BallClient(s);
         test.setVisible(true);
+    }
+
+    private class ChatHandler implements MessageListener<Client> {
+        public void messageReceived(Client source, Message m) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        }
     }
 
     private class ClientMessageListener implements MessageListener<Client> {

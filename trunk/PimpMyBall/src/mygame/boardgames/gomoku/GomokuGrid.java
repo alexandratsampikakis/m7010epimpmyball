@@ -2,13 +2,13 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku;
+package mygame.boardgames.gomoku;
 
 import java.util.ArrayList;
-import boardgames.Direction;
-import boardgames.GridPoint;
-import boardgames.GridSize;
-import boardgames.MoveListener;
+import mygame.boardgames.Direction;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.GridSize;
+import mygame.boardgames.MoveListener;
 
 /**
  *

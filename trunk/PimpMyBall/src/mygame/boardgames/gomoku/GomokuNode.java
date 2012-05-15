@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku;
+package mygame.boardgames.gomoku;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.asset.TextureKey;
@@ -16,9 +16,9 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.texture.Texture;
-import boardgames.GridPoint;
-import boardgames.GridSize;
-import boardgames.MoveListener;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.GridSize;
+import mygame.boardgames.MoveListener;
 
 /**
  *
@@ -201,8 +201,8 @@ public class GomokuNode extends Node implements MoveListener {
     @Override
     public void onMove(CellColor color, GridPoint p) {
         // TODO
-        // Implementera! Gör så att man slipper göra
-        // dubbelt arbete varje gång ett drag görs
+        // Implementera! G√∂r s√• att man slipper g√∂ra
+        // dubbelt arbete varje g√•ng ett drag g√∂rs
     }
 
     @Override

@@ -1,11 +1,11 @@
-package boardgames.network;
+package mygame.boardgames.network;
 
-import boardgames.network.GomokuServer;
-import boardgames.network.GomokuMessage;
-import boardgames.network.NewGameMessage;
-import boardgames.gomoku.CellColor;
-import boardgames.gomoku.GomokuGrid;
-import boardgames.gomoku.WinningRow;
+import mygame.boardgames.network.GomokuServer;
+import mygame.boardgames.network.GomokuMessage;
+import mygame.boardgames.network.NewGameMessage;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.gomoku.GomokuGrid;
+import mygame.boardgames.gomoku.WinningRow;
 import com.jme3.app.SimpleApplication;
 import com.jme3.collision.CollisionResult;
 import com.jme3.font.BitmapText;
@@ -41,11 +41,11 @@ import java.awt.Component;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
-import boardgames.GridPoint;
+import mygame.boardgames.GridPoint;
 
-import boardgames.Select3D;
-import boardgames.Select3D;
-import boardgames.gomoku.GomokuNode;
+import mygame.boardgames.Select3D;
+import mygame.boardgames.Select3D;
+import mygame.boardgames.gomoku.GomokuNode;
 
 /**
  * test
