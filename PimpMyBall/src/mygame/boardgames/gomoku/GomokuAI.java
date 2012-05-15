@@ -2,13 +2,13 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku;
+package mygame.boardgames.gomoku;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import boardgames.Direction;
-import boardgames.GridPoint;
+import mygame.boardgames.Direction;
+import mygame.boardgames.GridPoint;
 
 /**
  *
@@ -199,8 +199,8 @@ public class GomokuAI {
                 Direction.NORTH_WEST,
             };
             
-            // Räkna på hur många ställen det ger rader också, 
-            // typ 3 i rad på två ställen
+            // R√§kna p√• hur m√•nga st√§llen det ger rader ocks√•, 
+            // typ 3 i rad p√• tv√• st√§llen
             
             int selfScore, opponentScore, score = 0;
             

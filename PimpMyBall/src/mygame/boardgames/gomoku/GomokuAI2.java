@@ -2,9 +2,9 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku;
+package mygame.boardgames.gomoku;
 
-import boardgames.GridPoint;
+import mygame.boardgames.GridPoint;
 
 /**
  *

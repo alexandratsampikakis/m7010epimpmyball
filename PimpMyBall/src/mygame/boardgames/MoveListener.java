@@ -2,10 +2,10 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames;
+package mygame.boardgames;
 
-import boardgames.gomoku.CellColor;
-import boardgames.gomoku.WinningRow;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.gomoku.WinningRow;
 
 /**
  *

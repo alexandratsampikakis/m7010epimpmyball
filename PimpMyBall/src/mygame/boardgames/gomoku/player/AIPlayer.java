@@ -2,12 +2,12 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.gomoku.player;
+package mygame.boardgames.gomoku.player;
 
-import boardgames.GomokuGame;
-import boardgames.GridPoint;
-import boardgames.gomoku.GomokuAI;
-import boardgames.gomoku.CellColor;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.gomoku.GomokuAI;
+import mygame.boardgames.gomoku.CellColor;
 
 /**
  *

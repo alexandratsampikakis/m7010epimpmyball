@@ -2,12 +2,12 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package boardgames.network;
+package mygame.boardgames.network;
 
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
-import boardgames.GomokuGame;
-import boardgames.GridSize;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.GridSize;
 
 /**
  *

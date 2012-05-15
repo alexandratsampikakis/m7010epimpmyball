@@ -89,7 +89,9 @@ public class TestClient extends SimpleApplication {
     public void simpleInitApp() {
         try {
             client = Network.connectToServer(BallServer.NAME, BallServer.VERSION,
-                    "localhost", BallServer.PORT, BallServer.UDP_PORT);
+                    "192.168.1.6",
+                    // "localhost",
+                    BallServer.PORT, BallServer.UDP_PORT);
         } catch (IOException ex) {
             Logger.getLogger(TestClient.class.getName()).log(Level.SEVERE, null, ex);
         }
