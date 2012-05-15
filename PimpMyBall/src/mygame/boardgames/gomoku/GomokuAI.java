@@ -41,46 +41,35 @@ public class GomokuAI {
         }
     }
 
+    private int countRow(GridPoint start, Direction dir, CellColor color) {
+
+        int inRow = 0;
+        GridPoint p = new GridPoint(start, dir);
+        CellColor chk = grid.getState(p);
+        
+        while (chk == color) {
+            p.move(dir);
+            chk = grid.getState(p);
+            inRow++;
+        }
+        return inRow;
+    }
+    
     private int getScore(GridPoint location, CellColor color) {
 
         int[] counts = new int[] 
         {
-            grid.countRowExcl(location, Direction.NORTH, color)
-            + grid.countRowExcl(location, Direction.SOUTH, color),
+            countRow(location, Direction.NORTH, color)
+            + countRow(location, Direction.SOUTH, color),
         
-            grid.countRowExcl(location, Direction.WEST, color)
-            + grid.countRowExcl(location, Direction.EAST, color),
+            countRow(location, Direction.WEST, color)
+            + countRow(location, Direction.EAST, color),
             
-            grid.countRowExcl(location, Direction.NORTH_WEST, color)
-            + grid.countRowExcl(location, Direction.SOUTH_EAST, color),
+            countRow(location, Direction.NORTH_WEST, color)
+            + countRow(location, Direction.SOUTH_EAST, color),
             
-            grid.countRowExcl(location, Direction.SOUTH_WEST, color)
-            + grid.countRowExcl(location, Direction.NORTH_EAST, color),
-        };
-
-        int result = 0;
-        for (int i = 0; i < counts.length; i++) {
-            result = Math.max(result, counts[i]);
-        }
-        return result;
-    }
-
-    
-    private int getMaxScore(GridPoint location, CellColor color) {
-
-        int[] counts = new int[] 
-        {
-            grid.countMaxRow(location, Direction.NORTH, color)
-            + grid.countMaxRow(location, Direction.SOUTH, color),
-            
-            grid.countMaxRow(location, Direction.WEST, color)
-            + grid.countMaxRow(location, Direction.EAST, color),
-            
-            grid.countMaxRow(location, Direction.NORTH_WEST, color)
-            + grid.countMaxRow(location, Direction.SOUTH_EAST, color),
-            
-            grid.countMaxRow(location, Direction.SOUTH_WEST, color)
-            + grid.countMaxRow(location, Direction.NORTH_EAST, color),
+            countRow(location, Direction.SOUTH_WEST, color)
+            + countRow(location, Direction.NORTH_EAST, color),
         };
 
         int result = 0;

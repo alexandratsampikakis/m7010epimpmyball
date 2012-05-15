@@ -9,7 +9,9 @@ import mygame.boardgames.GridPoint;
 import mygame.boardgames.gomoku.CellColor;
 
 /**
- *
+ * TODO:
+ * Exchange abstract methods for GomokuGame.Listener?
+ * 
  * @author Jimmy
  */
 public abstract class GomokuPlayer {
@@ -23,7 +25,7 @@ public abstract class GomokuPlayer {
     }
     
     public void setOpponent(GomokuPlayer opponent) {
-        if (color == CellColor.NONE) {
+        if (opponent != null && color == CellColor.NONE) {
             color = CellColor.randomColor();
             opponent.color = color.opponent();
         }
@@ -40,6 +42,6 @@ public abstract class GomokuPlayer {
     
     public abstract void onOpponentMove(GridPoint p);
     public abstract void onStartGame(boolean myTurn);
-    public abstract void onGameWon(boolean didWin);
+    public abstract void onGameWon(CellColor winningColor);
     public abstract void onOpponentSurrender();
 }

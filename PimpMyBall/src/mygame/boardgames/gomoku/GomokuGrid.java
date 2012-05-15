@@ -4,11 +4,9 @@
  */
 package mygame.boardgames.gomoku;
 
-import java.util.ArrayList;
 import mygame.boardgames.Direction;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
-import mygame.boardgames.MoveListener;
 
 /**
  *
@@ -21,8 +19,6 @@ public class GomokuGrid {
     private CellColor grid[][];
     private int numPlaced = 0;
     
-    private ArrayList<MoveListener> listeners = null;
-            
     public GomokuGrid(GridSize size) {
         this(size.rows, size.cols);
     };
@@ -51,13 +47,6 @@ public class GomokuGrid {
             }
         }
     }
-    
-    public void addMoveListener(MoveListener listener) {
-        if (listeners == null) {
-            listeners = new ArrayList<MoveListener>();
-        }
-        listeners.add(listener);
-    }
             
     public int getNumInRowToWin() {
         return inRowToWin;
@@ -78,11 +67,13 @@ public class GomokuGrid {
     }
     
     public void reset() {
+        
         for (int i = 0; i < size.rows; i++) {
             for (int j = 0; j < size.cols; j++) {
                 grid[i][j] = CellColor.NONE;
             }
         }
+        
         numPlaced = 0;
     }
     
@@ -120,27 +111,16 @@ public class GomokuGrid {
     }
     
     public boolean tryMove(GridPoint p, CellColor player) {
-        if (getState(p) != CellColor.NONE) {
+        
+        if (getState(p) != CellColor.NONE)
             return false;
-        }
+        
         setState(p, player);
         numPlaced++;
-        
-        // Notify listeners
-        if (listeners != null) {
-            for (MoveListener listener : listeners) {
-                listener.onMove(player, p);
-            }
-        }
-        
+
         return true;
     }
-    
-    
-    public boolean isWinner(CellColor player) {
-        return player == getWinner();
-    }
-    
+   
     public WinningRow getWinningRow() {
         
         CellColor piece;
@@ -169,16 +149,6 @@ public class GomokuGrid {
                             wr.end.col = p.col + dir.dc * inRow;
                             wr.direction = dir;
                             wr.winner = piece;
-                            
-                            /*
-                             wr.setStartPoint(p);
-                             wr.setEndPoint(new GridPoint(
-                                    p.row + dir.dr * inRow,
-                                    p.col + dir.dc * inRow));
-                             wr.setDirection(dir);
-                             wr.setWinningColor(piece);
-                             */
-                            
                             return wr;
                         }
                     }
@@ -188,32 +158,7 @@ public class GomokuGrid {
         return wr;
     }
     
-    public CellColor getWinner() {
-        CellColor piece;
-        GridPoint p = new GridPoint();
-        for (int i = 0; i < size.rows; i++) {
-            p.row = i;
-            for (int j = 0; j < size.cols; j++) {
-                p.col = j;
-                piece = getState(p);
-                if (piece != CellColor.NONE) {
-                    if (isWinningRow(p, Direction.EAST, piece)
-                            || isWinningRow(p, Direction.SOUTH, piece)
-                            || isWinningRow(p, Direction.SOUTH_EAST, piece)
-                            || isWinningRow(p, Direction.SOUTH_WEST, piece)) {
-                        return piece;
-                    }
-                }
-            }
-        }
-        return CellColor.NONE;
-    }
-
-    private boolean isWinningRow(GridPoint p, Direction dir, CellColor color) {
-        return countRow(p, dir, color) >= inRowToWin;
-    }
-    
-    public int countRow(GridPoint start, Direction dir, CellColor color) {
+    private int countRow(GridPoint start, Direction dir, CellColor color) {
         
         if (color == CellColor.NONE) {
             return 0;
@@ -232,102 +177,6 @@ public class GomokuGrid {
         return inRow;
     }
     
-    public int getInARowsCRAP(CellColor color, int numInRow, int maxCap) {
-        CellColor piece;
-        GridPoint p = new GridPoint();
-        int count = 0;
-        for (int i = 0; i < size.rows; i++) {
-            p.row = i;
-            for (int j = 0; j < size.cols; j++) {
-                p.col = j;
-                piece = getState(p);
-                if (piece == color) {
-                    if (countCapped(p, Direction.EAST, piece, numInRow, maxCap)
-                            || countCapped(p, Direction.SOUTH, piece, numInRow, maxCap)
-                            || countCapped(p, Direction.SOUTH_EAST, piece, numInRow, maxCap)
-                            || countCapped(p, Direction.SOUTH_WEST, piece, numInRow, maxCap)) {
-                        count++;
-                    }
-                }
-            }
-        }
-        return count;
-    }
-    
-    private boolean countCapped(GridPoint start, 
-            Direction dir, CellColor color, int numInRow, int maxCap) {
-        
-        if (getState(start) != color) {
-            return false;
-        }
-        
-        GridPoint p = new GridPoint(start, dir);
-        CellColor chk = getState(p);
-
-        while (numInRow > 1 && chk == color) {
-            p.move(dir);
-            chk = getState(p);
-            numInRow--;
-        }
-        
-        if (numInRow > 1) {
-            return false;
-        }
-        
-        GridPoint test = new GridPoint(start, dir.opposite());
-        if (getState(test) != color) {
-            maxCap--;
-        }
-        
-        // p.move(dir);
-        if (chk != color) {
-            maxCap--;
-        }
-        
-        return (maxCap >= 0);
-        
-    }
-    
-    public int countRowExcl(GridPoint start, Direction dir, CellColor color) {
-        
-        if (color == CellColor.NONE) {
-            return 0;
-        }
-        
-        int inRow = 0;
-        GridPoint p = new GridPoint(start, dir);
-        CellColor chk = getState(p);
-        
-        while (chk == color) {
-            inRow++;
-            p.move(dir);
-            chk = getState(p);
-        }
-        
-        return inRow;
-    }
-    
-    public int countMaxRow(GridPoint start, Direction dir, CellColor color) {
-        
-        if (color == CellColor.NONE) {
-            return 0;
-        }
-        
-        CellColor wrongColor = color.opponent();
-        
-        int inRow = 0;
-        GridPoint p = new GridPoint(start, dir);
-        CellColor chk = getState(p);
-        
-        while (inBounds(p) && chk != wrongColor) {
-            p.move(dir);
-            chk = getState(p);
-            inRow++;
-        }
-        
-        return inRow;
-    }
-
     boolean hasAdjacentPieces(GridPoint p) {
         for (int i = p.row - 1; i <= p.row + 1; i++) {
             for (int j = p.col - 1; j <= p.col + 1; j++) {
@@ -339,4 +188,5 @@ public class GomokuGrid {
         }
         return false;
     }
+    
 }

@@ -38,9 +38,9 @@ public class AIPlayer extends GomokuPlayer {
     }
     
     @Override
-    public void onGameWon(boolean didWin) {
-        
+    public void onGameWon(CellColor winningColor) {        
     }
+    
     @Override
     public void onOpponentSurrender() {
         
