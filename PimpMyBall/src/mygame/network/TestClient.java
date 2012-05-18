@@ -1,82 +1,51 @@
 package mygame.network;
 
+import mygame.network.messages.BallMessage;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import com.jme3.bullet.BulletAppState;
 import com.jme3.app.SimpleApplication;
-import com.jme3.bullet.control.RigidBodyControl;
-import com.jme3.effect.ParticleEmitter;
-import com.jme3.font.BitmapText;
+import com.jme3.bullet.BulletAppState;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
-import com.jme3.light.PointLight;
 import com.jme3.material.Material;
-import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import com.jme3.renderer.Camera;
-import com.jme3.renderer.queue.RenderQueue.ShadowMode;
-import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
-import com.jme3.terrain.geomipmap.TerrainLodControl;
-import com.jme3.terrain.heightmap.AbstractHeightMap;
-import com.jme3.terrain.heightmap.ImageBasedHeightMap;
-import com.jme3.terrain.geomipmap.TerrainQuad;
-import com.jme3.terrain.geomipmap.lodcalc.DistanceLodCalculator;
-import com.jme3.texture.Texture;
-import com.jme3.texture.Texture.WrapMode;
-import com.jme3.util.SkyFactory;
 import java.util.concurrent.Callable;
+import mygame.network.messages.UserAddedMessage;
 
-/**
- * Creates a terrain object and a collision node to go with it. Then
- * drops several balls from the sky that collide with the terrain
- * and roll around.
- * Left click to place a sphere on the ground where the crosshairs intersect the terrain.
- * Hit keys 1 or 2 to raise/lower the terrain at that spot.
- *
- * @author
- */
 public class TestClient extends SimpleApplication {
 
-    TerrainQuad terrain;
-    Node terrainPhysicsNode;
     Material matRock;
     Material matWire;
     private int timeCounter = 0;
     private Client client;
     private BasicShadowRenderer bsr;
     private Vector3f[] points;
+    private long id = 0;
+    private UserList userList = new UserList();
+    protected BulletAppState viewAppState, ghostAppState;
+
     {
         points = new Vector3f[8];
         for (int i = 0; i < points.length; i++) {
             points[i] = new Vector3f();
         }
     }
-    protected BitmapText hintText;
-    private PointLight pl;
-    private Geometry lightMdl;
-    private BulletAppState bulletAppState;
-    private Ball player;
-    private Vector3f walkDirection = new Vector3f(0, 0, 0);
+    private ClientSideUser player;
     private boolean left = false,
             right = false,
             up = false,
             down = false;
-    private ParticleEmitter smoke;
-    
-    private Vector3f realPosition = Vector3f.ZERO;
-    private Vector3f realVelocity = Vector3f.ZERO;
+    private mygame.network.Level level;
 
     public static void main(String[] args) {
         BallServer.initializeClasses();
@@ -89,98 +58,104 @@ public class TestClient extends SimpleApplication {
     public void simpleInitApp() {
         try {
             client = Network.connectToServer(BallServer.NAME, BallServer.VERSION,
-                    "192.168.1.6",
-                    // "localhost",
-                    BallServer.PORT, BallServer.UDP_PORT);
+                    //"192.168.1.6", // Nickes ip
+                    "localhost", BallServer.PORT, BallServer.UDP_PORT);
         } catch (IOException ex) {
             Logger.getLogger(TestClient.class.getName()).log(Level.SEVERE, null, ex);
         }
-        client.addMessageListener(new ClientMessageListener(), BallMessage.class);
+
+        client.addMessageListener(new ClientMessageListener(), BallMessage.class, UserAddedMessage.class);
         client.start();
-
-        //Creating a sky
-        rootNode.attachChild(SkyFactory.createSky(
-                assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
-
+        initAppStates();
         initKeys();
-        initLighting();
         initShadow();
-
-        bulletAppState = new BulletAppState();
-        bulletAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
-        stateManager.attach(bulletAppState);
-
-        initPlayer();
+        initLevel();
+        //Create the player:
+        addNewUser(id);
+        /*/OSPARVÄRT//////////*/ player = (ClientSideUser) userList.getUserWithId(id);
+        /*/OSPARVÄRT//////////*/ player.setPosition(new Vector3f(0f, 100f, 0f));
         initCamera();
-        setUpTerrain();
     }
-    
-        private class ClientMessageListener implements MessageListener<Client> {
+
+    private void sendBallMessage() {
+        BallMessage ballMessage = new BallMessage(id, Vector3f.ZERO, Vector3f.ZERO, player.getDirection());
+        ballMessage.setReliable(false);
+        client.send(ballMessage);
+        System.out.println("Sending direction: " + ballMessage.getDirection());
+        System.out.println("Position is: " + player.getPosition());
+        System.out.println("Ghost position is: " + player.getGhostControl().getPhysicsLocation());
+
+
+    }
+
+    private class ClientMessageListener implements MessageListener<Client> {
+
         public void messageReceived(Client source, Message message) {
-            if (message instanceof BallMessage) {
-                TestClient.this.enqueue(new MyCallable((BallMessage) message));
-            }
-        }
-    }
-    
-            private class MyCallable implements Callable {
-            BallMessage ballMessage;
-            
-            public MyCallable(BallMessage ballMessage) {
-                this.ballMessage = ballMessage;
-            }
-            
-            // Extract the velocity of the user sending the message.
-            public Object call() {
-                realPosition = ballMessage.getPosition();
-                realVelocity = ballMessage.getVelocity();
-                System.out.println("Receiving velocity: " + ballMessage.getVelocity());
-                return ballMessage;
-            }
+            TestClient.this.enqueue(new MyCallable(message));
         }
 
-    @Override
-    public void update() {
-        super.update();
+        private class MyCallable implements Callable {
+
+            Message message;
+
+            public MyCallable(Message message) {
+                this.message = message;
+            }
+
+            public Object call() {
+                if (message instanceof BallMessage) {
+                    BallMessage ballMessage = (BallMessage) message;
+                    long callerId = ballMessage.getId();
+                    ClientSideUser user = (ClientSideUser) userList.getUserWithId(callerId);
+                    Vector3f position = ballMessage.getPosition();
+                    Vector3f velocity = ballMessage.getVelocity();
+                    Vector3f direction = ballMessage.getDirection();
+                    user.setGhostData(position, velocity, direction);
+
+                } else if (message instanceof UserAddedMessage) {
+                    UserAddedMessage userAddedMessage = (UserAddedMessage) message;
+                    addNewUser(userAddedMessage.getId());
+                }
+                return message;
+            }
+        }
     }
 
     @Override
     public void simpleUpdate(float tpf) {
         Vector3f camDir = cam.getDirection().clone();
         Vector3f camLeft = cam.getLeft().clone();
-        camDir.y = 0;   // Dessa två gör ingen skillnad.
-        camLeft.y = 0;
-        walkDirection.set(0, 0, 0);
+        camDir.y = 0f;
+        camLeft.y = 0f;
+        player.setDirection(Vector3f.ZERO);
 
         if (left) {
-            walkDirection.addLocal(camDir.negate()); ////////////////sjukt fiskigt!! måste ändra detta sen!!!!
+            player.setDirection(camLeft);
         }
         if (right) {
-            walkDirection.addLocal(camDir);
+            player.setDirection(camLeft.negate());
         }
         if (up) {
-            walkDirection.addLocal(camLeft);
+            player.setDirection(camDir);
         }
         if (down) {
-            walkDirection.addLocal(camLeft.negate());
+            player.setDirection(camDir.negate());
         }
-        
-        Vector3f currentPosition = player.getGeometry().getLocalTranslation();
-        Vector3f newDirection = realPosition.subtract(currentPosition);
-        float newDirectionAbs = newDirection.length();
-        if (newDirectionAbs > 0.5f) {  
-            player.getControl().setLinearVelocity(realVelocity.add(newDirection));
+
+        // Move all users
+        for (User user : userList) {
+            ClientSideUser clientSideUser = (ClientSideUser) user;
+            clientSideUser.moveForward();
+            clientSideUser.moveGhost();
         }
 
         //For the shadow
         Camera shadowCam = bsr.getShadowCamera(); //Behövs denna?
         ShadowUtil.updateFrustumPoints2(shadowCam, points);
 
-        // Send velocity to server on a fixed interval
+        // Send direction to server on a fixed interval
         if (timeCounter > 5) {
-            BallMessage ballMessage = new BallMessage(Vector3f.ZERO, walkDirection, Vector3f.ZERO);
-            ballMessage.setReliable(false);
-            client.send(ballMessage);
+            sendBallMessage();
             timeCounter = 0;
         }
         timeCounter++;
@@ -216,77 +191,12 @@ public class TestClient extends SimpleApplication {
         }
     };
 
-    /**
-     * 
-     */
-    private void initLighting() {
-        // Create directional light
-        DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
-        rootNode.addLight(directionalLight);
-        //Create ambient light
-        AmbientLight ambientLight = new AmbientLight();
-        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
-        rootNode.addLight(ambientLight);
-    }
-
-    /**
-     * 
-     */
-    private void initCamera() {
-        flyCam.setEnabled(false);
-        ChaseCamera camera = new ChaseCamera(cam, player.getGeometry(), inputManager);
-        camera.setDragToRotate(false);
-    }
-
-    /**
-     * 
-     */
-    private void setUpTerrain() {
-        matRock = new Material(assetManager, "Common/MatDefs/Terrain/Terrain.j3md");
-        matRock.setTexture("Alpha", assetManager.loadTexture("Textures/Terrain/splat/alphamap.png"));
-        Texture heightMapImage = assetManager.loadTexture("Textures/Terrain/splat/mountains512.png");
-        Texture grass = assetManager.loadTexture("Textures/Terrain/splat/grass.jpg");
-        grass.setWrap(WrapMode.Repeat);
-        matRock.setTexture("Tex1", grass);
-        matRock.setFloat("Tex1Scale", 64f);
-        Texture dirt = assetManager.loadTexture("Textures/Terrain/splat/dirt.jpg");
-        dirt.setWrap(WrapMode.Repeat);
-        matRock.setTexture("Tex2", dirt);
-        matRock.setFloat("Tex2Scale", 32f);
-        Texture rock = assetManager.loadTexture("Textures/Terrain/splat/road.jpg");
-        rock.setWrap(WrapMode.Repeat);
-        matRock.setTexture("Tex3", rock);
-        matRock.setFloat("Tex3Scale", 128f);
-        AbstractHeightMap heightmap = null;
-        try {
-            heightmap = new ImageBasedHeightMap(heightMapImage.getImage(), 0.25f);
-            heightmap.load();
-        } catch (Exception e) {
-        }
-        terrain = new TerrainQuad("terrain", 65, 513, heightmap.getHeightMap());
-        TerrainLodControl control = new TerrainLodControl(terrain, getCamera());
-        control.setLodCalculator(new DistanceLodCalculator(65, 2.7f)); // patch size, and a multiplier
-        terrain.addControl(control);
-        terrain.setMaterial(matRock);
-        terrain.setLocalScale(new Vector3f(2, 2, 2));
-        terrain.setLocked(false); // unlock it so we can edit the height
-        rootNode.attachChild(terrain);
-        terrain.addControl(new RigidBodyControl(0));
-        terrain.setShadowMode(ShadowMode.CastAndReceive);
-        bulletAppState.getPhysicsSpace().addAll(terrain);
-    }
-
-    /**
-     * 
-     */
-    private void initPlayer() {
-        player = new Ball(assetManager);
-        rootNode.attachChild(player);
-        bulletAppState.getPhysicsSpace().add(player.getControl());
-        Vector3f pos = new Vector3f(100f, 200f, 0f);
-        player.getControl().setPhysicsLocation(pos);
+    private void addNewUser(long id) {
+        ClientSideUser newUser = new ClientSideUser(assetManager, id);
+        userList.add(newUser);
+        ghostAppState.getPhysicsSpace().add(newUser.getGhostControl());
+        viewAppState.getPhysicsSpace().add(newUser.getControl());
+        level.attachChild(newUser.getGeometry());
     }
 
     private void initKeys() {
@@ -300,25 +210,33 @@ public class TestClient extends SimpleApplication {
         inputManager.addListener(actionListener, "CharBackward");
     }
 
+    private void initAppStates() {
+        viewAppState = new BulletAppState();
+        viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
+        stateManager.attach(viewAppState);
+
+        ghostAppState = new BulletAppState();
+        ghostAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
+        stateManager.attach(ghostAppState);
+    }
+
     public void initShadow() {
         bsr = new BasicShadowRenderer(assetManager, 512);
-        bsr.setDirection(new Vector3f(-0.5f,-.5f,-.5f).normalizeLocal());
+        bsr.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
         viewPort.addProcessor(bsr);
     }
 
-    /*private class SendAction extends AbstractAction {
-        private boolean reliable;
+    private void initCamera() {
+        flyCam.setEnabled(false);
+        ChaseCamera camera = new ChaseCamera(cam, player.getGeometry(), inputManager);
+        camera.setDragToRotate(false);
+    }
 
-        public SendAction(boolean reliable) {
-            super(reliable ? "TCP" : "UDP");
-            this.reliable = reliable;
-        }
-
-        public void actionPerformed(ActionEvent evt) {
-            BallMessage ballMessage = new BallMessage(Vector3f.ZERO, walkDirection, Vector3f.ZERO);
-            ballMessage.setReliable(reliable);
-            System.out.println("Sending:" + ballMessage);
-            client.send(ballMessage);
-        }
-    }*/
+    private void initLevel() {
+        level = new TestLevel(assetManager);
+        level.initLighting();
+        rootNode.attachChild(level);
+        viewAppState.getPhysicsSpace().add(level.getTerrain());
+        ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
+    }
 }
