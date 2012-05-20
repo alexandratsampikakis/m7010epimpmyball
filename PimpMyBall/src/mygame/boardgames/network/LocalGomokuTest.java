@@ -4,12 +4,6 @@
  */
 package mygame.boardgames.network;
 
-import mygame.boardgames.network.GomokuServer;
-import mygame.boardgames.network.GomokuMessage;
-import mygame.boardgames.network.NewGameMessage;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.GomokuGrid;
-import mygame.boardgames.gomoku.WinningRow;
 import com.jme3.app.SimpleApplication;
 import com.jme3.collision.CollisionResult;
 import com.jme3.font.BitmapText;
@@ -26,36 +20,23 @@ import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
-import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
-import com.jme3.math.Vector3f;
-import com.jme3.network.Client;
-import com.jme3.network.Message;
-import com.jme3.network.MessageListener;
-import com.jme3.network.Network;
 import com.jme3.renderer.RenderManager;
 import com.jme3.system.AppSettings;
 import com.jme3.texture.Texture;
 import com.jme3.texture.Texture2D;
 import com.jme3.ui.Picture;
-import java.awt.Component;
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import javax.swing.JOptionPane;
+import java.util.Random;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 
-import mygame.boardgames.Select3D;
 import mygame.boardgames.Select3D;
 import mygame.boardgames.gomoku.GomokuBoard3D;
 import mygame.boardgames.gomoku.player.AIPlayer;
 import mygame.boardgames.gomoku.player.GomokuPlayer;
 import mygame.boardgames.gomoku.player.LocalPlayer;
-import mygame.boardgames.gomoku.player.RemotePlayerClient;
-import mygame.boardgames.gomoku.player.RemotePlayerServer;
 
 
 /**
@@ -65,10 +46,12 @@ import mygame.boardgames.gomoku.player.RemotePlayerServer;
 public class LocalGomokuTest extends SimpleApplication implements ActionListener {
 
     private static boolean USE_CURSOR = false;
-    
+    private static boolean USE_AI_OPPONENT = true;
+            
     private GomokuBoard3D board = null;
     private GomokuGame game;
     private GomokuPlayer turn;
+    private Random rand = new Random();
     
     public static void main(String[] args) throws Exception {
         LocalGomokuTest app = new LocalGomokuTest();
@@ -80,12 +63,24 @@ public class LocalGomokuTest extends SimpleApplication implements ActionListener
         // Create a new game as specified by the message
         game = new GomokuGame();
         
-        GomokuPlayer p1 = new LocalPlayer();
-        GomokuPlayer p2 = new AIPlayer();
-        game.setPlayers(p1, p2);
+        // Kraschar med två AI-spelare!! :( 
+        // + risk för stack overflow...
+        GomokuPlayer p1 = new LocalPlayer(); // new AIPlayer();
+        GomokuPlayer p2 = (USE_AI_OPPONENT) ? new AIPlayer() : new LocalPlayer();
         
-        turn = p1;
+        if (rand.nextBoolean()) {
+            turn = p1;
+            game.setPlayers(p1, p2);
+        } else {
+            turn = p2;
+            game.setPlayers(p2, p1);
+        }
         
+        if (USE_AI_OPPONENT) {
+            // AI opponent plays instantly..
+            turn = p1;
+        }
+    
         if (board != null)
             rootNode.detachChild(board);
         
@@ -107,6 +102,10 @@ public class LocalGomokuTest extends SimpleApplication implements ActionListener
         inputManager.addListener(this, "click", "restart");
         
         initControls();
+        
+        AmbientLight al = new AmbientLight();
+        al.setColor(ColorRGBA.White.mult(0.7f));
+        rootNode.addLight(al);
         
         startNewGame();
     }
@@ -131,11 +130,12 @@ public class LocalGomokuTest extends SimpleApplication implements ActionListener
                 }
 
                 if (closest != null) {
-
+                    
                     GridPoint p = closest.getGeometry().getUserData("pos");
                     
                     if (p != null && game.tryMove(turn, p)) {
-                        // turn = turn.getOpponent();
+                        if (!USE_AI_OPPONENT)
+                            turn = turn.getOpponent();
                     }
                 }
                 

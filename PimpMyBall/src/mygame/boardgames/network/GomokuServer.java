@@ -1,56 +1,19 @@
 package mygame.boardgames.network;
 
-import mygame.boardgames.gomoku.GomokuAI;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.GomokuGrid;
-import mygame.boardgames.gomoku.WinningRow;
-import com.jme3.app.SimpleApplication;
-import com.jme3.collision.CollisionResult;
-import com.jme3.font.BitmapText;
-import com.jme3.input.KeyInput;
-import com.jme3.input.MouseInput;
-import com.jme3.input.RawInputListener;
-import com.jme3.input.controls.ActionListener;
-import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.input.event.JoyAxisEvent;
-import com.jme3.input.event.JoyButtonEvent;
-import com.jme3.input.event.KeyInputEvent;
-import com.jme3.input.event.MouseButtonEvent;
-import com.jme3.input.event.MouseMotionEvent;
-import com.jme3.input.event.TouchEvent;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
-import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Ray;
-import com.jme3.math.Vector2f;
-import com.jme3.math.Vector3f;
 import com.jme3.network.ConnectionListener;
-import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import com.jme3.network.Server;
 import com.jme3.network.serializing.Serializer;
-import com.jme3.renderer.RenderManager;
-import com.jme3.scene.Geometry;
-import com.jme3.system.AppSettings;
-import com.jme3.texture.Texture;
-import com.jme3.texture.Texture2D;
-import com.jme3.ui.Picture;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
 
-import mygame.boardgames.Select3D;
-import mygame.boardgames.gomoku.GomokuBoard3D;
-import mygame.boardgames.gomoku.player.AIPlayer;
 import mygame.boardgames.gomoku.player.GomokuPlayer;
 import mygame.boardgames.gomoku.player.RemotePlayerServer;
 
@@ -93,12 +56,10 @@ public class GomokuServer {
         server = Network.createServer(NAME, VERSION, PORT, UDP_PORT);
         server.addMessageListener(new MessageListener<HostedConnection>() {
             public void messageReceived(HostedConnection source, Message m) {
+                
                 if (m instanceof GomokuMessage) {
                     // app.enqueue(app.new MyCallable((GomokuMessage) m));
                     GomokuMessage gm = (GomokuMessage) m;
-                    
-                    System.out.println("Servern tar emot!! AHA :D id:" + gm.gameID);
-                    
                     GomokuGame game = hostedGames.get(gm.gameID);
                     GomokuPlayer cp = (game == null) ? null : game.getCurrentPlayer();
                     
@@ -109,6 +70,10 @@ public class GomokuServer {
                         }
                     }
                 }
+                
+                // TODO
+                // Svara med MoveFailedMessage!!!!!!!!!
+            
             }
         });
         server.addConnectionListener(new ConnectionListener() {

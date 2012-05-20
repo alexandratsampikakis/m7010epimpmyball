@@ -5,6 +5,7 @@
 package mygame.boardgames.gomoku;
 
 import com.jme3.material.Material;
+import com.jme3.math.ColorRGBA;
 import java.util.Random;
 
 /**
@@ -28,14 +29,14 @@ public enum CellColor {
         }
     }
     
-    public int getIndex() {
+    public ColorRGBA getColorRGBA() {
         switch (this) {
             case RED:
-                return 0;
+                return ColorRGBA.Red;
             case BLUE:
-                return 1;
+                return ColorRGBA.Blue;
             default:
-                return -1;
+                return ColorRGBA.White;
         }
     }
     
