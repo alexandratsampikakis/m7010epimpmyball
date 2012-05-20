@@ -194,8 +194,10 @@ public class GomokuAI {
             int selfScore, opponentScore, score = 0;
             
             for (Direction dir : dirs) {
-                selfScore = (new RowData(p, dir, color)).getValue();
-                opponentScore = (new RowData(p, dir, color.opponent())).getValue();
+                selfScore = 
+                        new RowData(p, dir, color).getValue();
+                opponentScore = 
+                        new RowData(p, dir, color.opponent()).getValue();
                 score = Math.max(score, Math.max(selfScore, opponentScore));
             }
             

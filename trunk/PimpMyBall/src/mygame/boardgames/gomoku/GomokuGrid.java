@@ -30,22 +30,13 @@ public class GomokuGrid {
     }
     
     public GomokuGrid(GomokuGrid g) {
-        this(g.getRows(), g.getCols());
+        this(g.getSize());
         
-        GridPoint p = new GridPoint();
-        CellColor color;
-        
+        // Copy values
         for (int i = 0; i < size.rows; i++) {
-            p.row = i;
-            for (int j = 0; j < size.cols; j++) {
-                p.col = j;
-                color = g.getState(p);
-                if (color != CellColor.NONE){
-                    setState(p, color);
-                    numPlaced++;
-                }
-            }
+            System.arraycopy(g.grid[i], 0, grid[i], 0, size.cols);
         }
+        numPlaced = g.numPlaced;
     }
             
     public int getNumInRowToWin() {
@@ -112,7 +103,7 @@ public class GomokuGrid {
     
     public boolean tryMove(GridPoint p, CellColor player) {
         
-        if (getState(p) != CellColor.NONE)
+        if (!inBounds(p) || getState(p) != CellColor.NONE)
             return false;
         
         setState(p, player);
@@ -120,45 +111,8 @@ public class GomokuGrid {
 
         return true;
     }
-   
-    public WinningRow getWinningRow() {
-        
-        CellColor piece;
-        WinningRow wr = new WinningRow();
-        GridPoint p = new GridPoint();
-        
-        Direction[] checkDirs = {
-            Direction.EAST, 
-            Direction.SOUTH, 
-            Direction.SOUTH_EAST, 
-            Direction.SOUTH_WEST,
-        };
-        
-        for (int i = 0; i < size.rows; i++) {
-            p.row = i;
-            for (int j = 0; j < size.cols; j++) {
-                p.col = j;
-                piece = getState(p);
-                if (piece != CellColor.NONE) {
-                    
-                    for (Direction dir : checkDirs) {
-                        int inRow = countRow(p, dir, piece);
-                        if (inRow >= inRowToWin) {
-                            wr.start.set(p);
-                            wr.end.row = p.row + dir.dr * inRow;
-                            wr.end.col = p.col + dir.dc * inRow;
-                            wr.direction = dir;
-                            wr.winner = piece;
-                            return wr;
-                        }
-                    }
-                }
-            }
-        }
-        return wr;
-    }
     
-    private int countRow(GridPoint start, Direction dir, CellColor color) {
+    protected int countRow(GridPoint start, Direction dir, CellColor color) {
         
         if (color == CellColor.NONE) {
             return 0;

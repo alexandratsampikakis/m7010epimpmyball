@@ -90,7 +90,7 @@ public class GomokuGame {
         
         currentPlayer = opponent;
         
-        WinningRow wr = grid.getWinningRow();
+        WinningRow wr = new WinningRow(grid);
         CellColor winningColor = wr.getWinningColor();
         
         // Notify listeners

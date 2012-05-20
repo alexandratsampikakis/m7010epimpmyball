@@ -16,6 +16,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import com.jme3.scene.shape.Sphere;
 import com.jme3.texture.Texture;
+import mygame.boardgames.Direction;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
@@ -55,12 +56,6 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
         float boardWidth = (gridSize * COLS + offset * (COLS - 1) + boardEdgeWidth * 2) / 2f;
         float boardHeight = (gridSize * ROWS + offset * (ROWS - 1) + boardEdgeWidth * 2) / 2f;
         
-        Vector3f center = new Vector3f(
-                boardWidth - (gridSize / 2f + boardEdgeWidth),
-                boardHeight - (gridSize / 2f + boardEdgeWidth),
-                0);
-        Vector3f pos;
-        
         Box b = new Box(Vector3f.ZERO, boardWidth, boardHeight, 0.25f);
         Geometry geom = new Geometry("Board", b);
         
@@ -77,13 +72,20 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
         
         attachChild(geom);
         
+        Vector3f center = new Vector3f(
+                boardWidth - (gridSize / 2f + boardEdgeWidth),
+                boardHeight - (gridSize / 2f + boardEdgeWidth),
+                0).negateLocal();
+        Vector3f pos;
+        Sphere s = new Sphere(25, 25, radius);
+
         for (int i = 0; i < ROWS; i++) {
             for (int j = 0; j < COLS; j++) {
+                
                 pos = new Vector3f(j + offset * j, i + offset * i, 0);
                 
-                Sphere s = new Sphere(25, 25, radius);
                 geom = new Geometry("Free", s);
-                geom.setLocalTranslation(pos.add(center.negate()));
+                geom.setLocalTranslation(pos.addLocal(center));
                 geom.setMaterial(matWhite);
                 geom.setUserData("row", new Integer(i));
                 geom.setUserData("col", new Integer(j));
@@ -103,11 +105,18 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
                 col < numCols && col >= 0);
     }
     
+    private Material getMaterial(CellColor color) {
+        switch (color) {
+            case RED:
+                return matRed;
+            case BLUE:
+                return matBlue;
+            default:
+                return matWhite;
+        }
+    }
+    
     public boolean setColor(GridPoint p, CellColor color) {
-        
-        Material[] materials = {
-            matRed, matBlue,
-        };
         
         if (!inBounds(p))
             return false;
@@ -118,23 +127,28 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
             return false;
     
         geom.setName("Taken");
-        geom.setMaterial(materials[color.getIndex()]);
+        geom.setMaterial(getMaterial(color));
     
         return true;
     }
     
     public void displayWinningRow(WinningRow wr) {
         
-        if (wr.winner != CellColor.NONE) {
+        CellColor winner = wr.getWinningColor();
+        GridPoint start = wr.getStartPoint();
+        GridPoint end = wr.getEndPoint();
+        Direction dir = wr.getDirection();
+        
+        if (winner != CellColor.NONE) {
             
-            int row = wr.start.row, col = wr.start.col;
+            int row = start.row, col = start.col;
             Geometry geom;
             
-            while (row != wr.end.row || col != wr.end.col) {
+            while (row != end.row || col != end.col) {
                 geom = grid[row][col];
                 geom.setMaterial(matGreen);
-                row += wr.direction.dr;
-                col += wr.direction.dc;
+                row += dir.dr;
+                col += dir.dc;
             }
         }
     }
@@ -151,33 +165,66 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
     }
 
     private void initMaterials(AssetManager manager) {
-        matWhite = new Material(manager, "Common/MatDefs/Light/Lighting.j3md");
+        
+        ColorRGBA[] colors = {
+            ColorRGBA.White,
+            ColorRGBA.Red,
+            ColorRGBA.Blue,
+            ColorRGBA.Green,
+        };
+        
+        String matKey = "Common/MatDefs/Light/Lighting.j3md";
+        float shininess = 24f;
+        int numMats = 4;
+        Material[] materials = new Material[numMats];
+        
+        for (int i = 0; i < numMats; i++) {
+            Material newMat = new Material(manager, matKey);
+            newMat.setColor("Diffuse", colors[i]);
+            newMat.setColor("Ambient", colors[i].mult(0.3f));
+            newMat.setColor("Specular", ColorRGBA.White.mult(0.6f));
+            newMat.setFloat("Shininess", shininess);
+            newMat.setBoolean("UseMaterialColors", true);
+            materials[i] = newMat;
+        }
+        
+        matWhite = materials[0];
+        matRed = materials[1];
+        matBlue = materials[2];
+        matGreen = materials[3];
+        
+        /*
+        String matKey = "Common/MatDefs/Light/Lighting.j3md";
+        float shininess = 24f;
+        
+        matWhite = new Material(manager, matKey);
         matWhite.setColor("Diffuse", ColorRGBA.White);
         matWhite.setColor("Ambient", ColorRGBA.White.mult(0.3f));
         matWhite.setColor("Specular", ColorRGBA.White.mult(0.6f));
-        matWhite.setFloat("Shininess", 5f);
+        matWhite.setFloat("Shininess", shininess);
         matWhite.setBoolean("UseMaterialColors", true);
 
-        matRed = new Material(manager, "Common/MatDefs/Light/Lighting.j3md");
+        matRed = new Material(manager, matKey);
         matRed.setColor("Diffuse", ColorRGBA.Red);
         matRed.setColor("Ambient", ColorRGBA.Red.mult(0.3f));
         matRed.setColor("Specular", ColorRGBA.White.mult(0.6f));
-        matRed.setFloat("Shininess", 5f);
+        matRed.setFloat("Shininess", shininess);
         matRed.setBoolean("UseMaterialColors", true);
 
-        matBlue = new Material(manager, "Common/MatDefs/Light/Lighting.j3md");
+        matBlue = new Material(manager, matKey);
         matBlue.setColor("Diffuse", ColorRGBA.Blue);
         matBlue.setColor("Ambient", ColorRGBA.Blue.mult(0.3f));
         matBlue.setColor("Specular", ColorRGBA.White.mult(0.6f));
-        matBlue.setFloat("Shininess", 5f);
+        matBlue.setFloat("Shininess", shininess);
         matBlue.setBoolean("UseMaterialColors", true);
         
-        matGreen = new Material(manager, "Common/MatDefs/Light/Lighting.j3md");
+        matGreen = new Material(manager, matKey);
         matGreen.setColor("Diffuse", ColorRGBA.Green);
         matGreen.setColor("Ambient", ColorRGBA.Green.mult(0.3f));
         matGreen.setColor("Specular", ColorRGBA.White.mult(0.6f));
-        matGreen.setFloat("Shininess", 5f);
+        matGreen.setFloat("Shininess", shininess);
         matGreen.setBoolean("UseMaterialColors", true);
+         */
     }
     
     private void initLights() {
