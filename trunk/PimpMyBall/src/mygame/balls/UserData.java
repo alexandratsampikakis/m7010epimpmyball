@@ -14,6 +14,7 @@ import com.jme3.math.Vector3f;
  *
  * @author nicnys-8
  */
+
 public class UserData {
     //private Vector3f latestCorrectPosition, latestCorrectVelocity;
     private long id;

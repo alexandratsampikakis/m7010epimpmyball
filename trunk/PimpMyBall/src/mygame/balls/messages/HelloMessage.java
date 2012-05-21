@@ -14,20 +14,20 @@ import com.jme3.network.serializing.Serializable;
 @Serializable
 public class HelloMessage extends AbstractMessage {
 
-    private long id;
-    private long authCode;
+    public long id;
+    public int secret;
 
     public HelloMessage() {
         setReliable(true);
     }
     
-    public HelloMessage(long authCode, long id) {
-        super();
-        this.authCode = authCode;
+    public HelloMessage(int secret, long id) {
+        this();
+        this.secret = secret;
         this.id = id;
     }
 
-    public long getId() {
+    /*public long getId() {
         return this.id;
     }
     
@@ -37,5 +37,5 @@ public class HelloMessage extends AbstractMessage {
     
     public long getAuthCode() {
         return authCode;
-    }
+    }*/
 }

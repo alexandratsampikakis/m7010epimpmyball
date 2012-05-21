@@ -130,7 +130,7 @@ public class BiMap<K extends Object, V extends Object> implements Cloneable {
         b.put("skam", 54);
         b.print();
         b.put("", 6);
-        b.put("", 54);
+        b.put("fasan", 54);
         b.print();
         b.removeKey("");
         b.removeValue(54);

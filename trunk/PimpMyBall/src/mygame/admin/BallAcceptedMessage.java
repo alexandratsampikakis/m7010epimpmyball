@@ -4,6 +4,7 @@
  */
 package mygame.admin;
 
+import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 
 /**
@@ -11,7 +12,7 @@ import com.jme3.network.serializing.Serializable;
  * @author Jimmy
  */
 @Serializable
-public class BallAcceptedMessage {
+public class BallAcceptedMessage extends AbstractMessage {
 
     public int secret;
     

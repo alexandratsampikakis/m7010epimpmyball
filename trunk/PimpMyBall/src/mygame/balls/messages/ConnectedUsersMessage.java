@@ -16,7 +16,7 @@ import mygame.balls.UserData;
 @Serializable
 public class ConnectedUsersMessage extends AbstractMessage {
 
-    private ArrayList<UserData> userData;
+    public ArrayList<UserData> userDataList;
 
     public ConnectedUsersMessage() {
         setReliable(true);
@@ -24,10 +24,10 @@ public class ConnectedUsersMessage extends AbstractMessage {
 
     public ConnectedUsersMessage(ArrayList<UserData> userData) {
         super();
-        this.userData = userData;
+        this.userDataList = userData;
     }
 
-    public ArrayList<UserData> getUserData() {
+    /*public ArrayList<UserData> getUserDataList() {
         return userData;
-    }
+    }*/
 }

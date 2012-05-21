@@ -1,9 +1,9 @@
 package mygame.balls.client;
 
-import mygame.balls.messages.BallUpdateMessage;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.input.ChaseCamera;
@@ -19,9 +19,16 @@ import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
+import java.awt.Component;
+import java.util.ArrayList;
 import java.util.concurrent.Callable;
+import javax.swing.JOptionPane;
+import mygame.admin.CentralServer;
+import mygame.admin.LoginMessage;
+import mygame.admin.LoginSuccessMessage;
+import mygame.admin.SerializerHelper;
+import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
-import mygame.balls.server.BallServer;
 import mygame.balls.TestLevel;
 import mygame.balls.UserData;
 import mygame.balls.messages.BallDirectionMessage;
@@ -31,7 +38,7 @@ import mygame.balls.messages.UserAddedMessage;
 import mygame.util.BiMap;
 
 public class BallClient extends SimpleApplication {
-
+    
     private int timeCounter = 0;
     private Client client;
     private BasicShadowRenderer bsr;
@@ -44,33 +51,84 @@ public class BallClient extends SimpleApplication {
             up = false,
             down = false;
     private mygame.balls.Level level;
+    //-----------------------------------
+    //-----------------------------------
+    static Client centralServerClient;
+    static CentralServerListener centralServerListener;
+    
+    public static void main(String[] args) throws IOException, InterruptedException {
+        SerializerHelper.initializeClasses();
+        String userName = getString(null, "Login Info", "Enter username:", "nicke");
+        String passWord = getString(null, "Login Info", "Enter Password:", "kass");
+        
+        ServerInfo centralServerInfo = CentralServer.info;
+        centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
+                centralServerInfo.NAME, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
 
-    public static void main(String[] args) {
-        BallServer.initializeClasses();
-        BallClient app = new BallClient();
-        app.start();
-        app.setPauseOnLostFocus(false);
+        //centralServerClient.addMessageListener(new CentralServerListener());
+        centralServerListener = new CentralServerListener();
+        centralServerClient.addMessageListener(centralServerListener);
+        
+        centralServerClient.send(new LoginMessage(userName, passWord));
+        
+        String stop = "STOOOP!";
+        synchronized (stop) {
+        stop.wait();
+    }
+        
+        
+    }
+    
+    private static class CentralServerListener implements MessageListener<Client> {
+        
+        public void messageReceived(Client source, Message message) {
+            
+            if (message instanceof LoginSuccessMessage) {
+                
+                LoginSuccessMessage loginMessage = (LoginSuccessMessage) message;
+                BallClient app;
+                try {
+                    app = new BallClient(loginMessage.serverInfo, loginMessage.userData);
+                    app.start();
+                    app.setPauseOnLostFocus(false);
+                } catch (Exception ex) {
+                    Logger.getLogger(BallClient.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                
+            }            
+        }
+    }
+    
+    public static String getString(Component owner, String title, String message, String initialValue) {
+        return (String) JOptionPane.showInputDialog(
+                owner, message, title,
+                JOptionPane.PLAIN_MESSAGE,
+                null, null, initialValue);
     }
 
+    //-----------------------------------
+    //-----------------------------------
+    public BallClient(ServerInfo serverInfo, UserData userData) throws Exception {
+        
+        client = Network.connectToServer(serverInfo.NAME, serverInfo.VERSION,
+                serverInfo.ADDRESS, serverInfo.PORT, serverInfo.UDP_PORT);
+        
+        client.addMessageListener(new BallServerListener(), BallUpdateMessage.class,
+                UserAddedMessage.class, ConnectedUsersMessage.class);
+        long playerId = userData.getId();
+        setupUser(userData);
+        playerUser = users.getValue(playerId);
+    }
+    
     @Override
     public void simpleInitApp() {
-        try {
-            client = Network.connectToServer(BallServer.NAME, BallServer.VERSION,
-                    //"192.168.1.6", // Nickes ip
-                    "localhost", BallServer.PORT, BallServer.UDP_PORT);
-        } catch (IOException ex) {
-            Logger.getLogger(BallClient.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        client.addMessageListener(new ClientMessageListener(), BallUpdateMessage.class,
-                UserAddedMessage.class, ConnectedUsersMessage.class);
         client.start();
         initAppStates();
         initKeys();
         initShadow();
         initLevel();
     }
-
+    
     private void sendBallDirectionMessage() {
         long playerId = playerUser.getId();
         Ball playerBall = playerUser.getBall();
@@ -78,76 +136,75 @@ public class BallClient extends SimpleApplication {
         BallDirectionMessage bdMessage = new BallDirectionMessage(playerId, playerDirection);
         client.send(bdMessage);
     }
-
-    private void sendHelloMessage(long id, long authCode) {
-        HelloMessage helloMessage = new HelloMessage(id, authCode);
-        client.send(helloMessage);
+    
+    private void sendHelloMessage(long id, int secret) {
+        client.send(new HelloMessage(secret, id));
     }
-
-    private class ClientMessageListener implements MessageListener<Client> {
-
+    
+    private class BallServerListener implements MessageListener<Client> {
+        
         public void messageReceived(Client source, Message message) {
-            BallClient.this.enqueue(new MyCallable(message));
+            BallClient.this.enqueue(new MessageReceiver(message));
         }
+    }
+    
+    private class MessageReceiver implements Callable {
+        
+        Message message;
+        
+        public MessageReceiver(Message message) {
+            this.message = message;
+        }
+        
+        public Object call() {
+            if (message instanceof BallUpdateMessage) {
+                
+                BallUpdateMessage buMessage = (BallUpdateMessage) message;
+                User user = users.getValue(buMessage.id);
+                Ball ghost = user.getGhost();
 
-        private class MyCallable implements Callable {
-
-            Message message;
-
-            public MyCallable(Message message) {
-                this.message = message;
-            }
-
-            public Object call() {
-                if (message instanceof BallUpdateMessage) {
-
-                    BallUpdateMessage ballMessage = (BallUpdateMessage) message;
-                    long callerId = ballMessage.getId();
-                    User user = users.getValue(callerId);
-                    Ball ghost = user.getGhost();
-
-                    if (ghost != null) {
-
-                        // Update the ghost
-                        ghost.setPosition(ballMessage.getPosition());
-                        ghost.setVelocity(ballMessage.getVelocity());
-                        ghost.setDirection(ballMessage.getDirection());
-                    }
-
-                } else if (message instanceof UserAddedMessage) {
-
-                    UserAddedMessage uaMessage = (UserAddedMessage) message;
-                    UserData userData = uaMessage.getUserData();
+                // Update the ghost
+                ghost.setPosition(buMessage.position);
+                ghost.setVelocity(buMessage.velocity);
+                ghost.setDirection(buMessage.direction);
+                
+            } else if (message instanceof UserAddedMessage) {
+                
+                UserAddedMessage uaMessage = (UserAddedMessage) message;
+                setupUser(uaMessage.userData);
+                
+            } else if (message instanceof ConnectedUsersMessage) {
+                
+                ConnectedUsersMessage cuMessage = (ConnectedUsersMessage) message;
+                ArrayList<UserData> userDataList = cuMessage.userDataList;
+                for (UserData userData : userDataList) {
                     setupUser(userData);
-
-                } else if () {
-                sendHelloMessage();
-                
-                } 
-                
-                
-                else {
-
-                    System.err.println("Received odd message:" + message);
                 }
-                return message;
+                
+            } else {
+                
+                System.err.println("Received odd message:" + message);
             }
+            return message;
         }
     }
 
+    //-----------------------------------------------------------
+    //    Slut nätverksbekymmer, det nedanför kan skickas bort!!!
+    //-----------------------------------------------------------
     @Override
     public void simpleUpdate(float tpf) {
         if (playerUser == null) {
             return;
         }
-
+        
         Ball playerBall = playerUser.getBall();
         Vector3f camDir = cam.getDirection().clone();
         Vector3f camLeft = cam.getLeft().clone();
         camDir.y = 0f;
         camLeft.y = 0f;
         playerBall.setDirection(Vector3f.ZERO);
-
+        
         if (left) {
             playerBall.setDirection(camLeft);
         }
@@ -165,7 +222,7 @@ public class BallClient extends SimpleApplication {
         for (User user : users.getValues()) {
             Ball ball = user.getBall();
             Ball ghost = user.getGhost();
-
+            
             ball.moveForward();
             ghost.moveForward();
             ball.adjustToBall(ghost);
@@ -179,7 +236,7 @@ public class BallClient extends SimpleApplication {
         timeCounter++;
     }
     private ActionListener actionListener = new ActionListener() {
-
+        
         public void onAction(String binding, boolean isPressed, float tpf) {
             if (binding.equals("CharLeft")) {
                 if (isPressed) {
@@ -208,17 +265,17 @@ public class BallClient extends SimpleApplication {
             }
         }
     };
-
+    
     private void setupUser(UserData userData) {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
         users.put(callerId, user);
-
+        
         level.attachChild(user.getGeometry());
         viewAppState.getPhysicsSpace().add(user.getBall());
         ghostAppState.getPhysicsSpace().add(user.getGhost());
     }
-
+    
     private void initKeys() {
         inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
@@ -229,17 +286,17 @@ public class BallClient extends SimpleApplication {
         inputManager.addListener(actionListener, "CharForward");
         inputManager.addListener(actionListener, "CharBackward");
     }
-
+    
     private void initAppStates() {
         viewAppState = new BulletAppState();
         viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(viewAppState);
-
+        
         ghostAppState = new BulletAppState();
         ghostAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(ghostAppState);
     }
-
+    
     public void initShadow() {
         points = new Vector3f[8];
         for (int i = 0; i < points.length; i++) {
@@ -248,17 +305,17 @@ public class BallClient extends SimpleApplication {
         bsr = new BasicShadowRenderer(assetManager, 512);
         bsr.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
         viewPort.addProcessor(bsr);
-
+        
         Camera shadowCam = bsr.getShadowCamera(); //Behövs denna?
         ShadowUtil.updateFrustumPoints2(shadowCam, points);
     }
-
+    
     private void setCameraTarget(Geometry target) {
         flyCam.setEnabled(false);
         ChaseCamera camera = new ChaseCamera(cam, target, inputManager);
         camera.setDragToRotate(false);
     }
-
+    
     private void initLevel() {
         level = new TestLevel(assetManager);
         level.initLighting();

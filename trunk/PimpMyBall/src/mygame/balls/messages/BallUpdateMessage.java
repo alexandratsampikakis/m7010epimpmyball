@@ -16,10 +16,10 @@ import mygame.balls.Ball;
 @Serializable
 public class BallUpdateMessage extends AbstractMessage {
 
-    private Vector3f position = Vector3f.ZERO,
+    public Vector3f position = Vector3f.ZERO,
             velocity = Vector3f.ZERO,
-            acceleration = Vector3f.ZERO;
-    private long id = 0;
+            direction = Vector3f.ZERO;
+    public long id = 0;
 
     public BallUpdateMessage() {
         setReliable(false);
@@ -30,10 +30,10 @@ public class BallUpdateMessage extends AbstractMessage {
         this.id = ball.getId();
         this.position = ball.getPosition();
         this.velocity = ball.getVelocity();
-        this.acceleration = ball.getDirection();
+        this.direction = ball.getDirection();
     }
 
-    public Vector3f getPosition() {
+    /*public Vector3f getPosition() {
         return position;
     }
 
@@ -47,5 +47,5 @@ public class BallUpdateMessage extends AbstractMessage {
 
     public long getId() {
         return id;
-    }
+    }*/
 }
