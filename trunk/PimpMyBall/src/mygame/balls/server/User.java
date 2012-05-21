@@ -6,6 +6,7 @@ package mygame.balls.server;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.HostedConnection;
 import com.jme3.scene.Geometry;
@@ -42,6 +43,7 @@ public class User {
         geometry.setMaterial(material);
         geometry.addControl(ball);
     }
+ 
 
     public Geometry getGeometry() {
         return geometry;

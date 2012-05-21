@@ -19,8 +19,7 @@ public class BallCollisionListener implements PhysicsCollisionListener {
         Object b = event.getObjectB();
         if (a instanceof Ball && b instanceof Ball) {
             Ball ballA = (Ball) a;
-            Ball ballB = (Ball) b;
-            
+            Ball ballB = (Ball) b;       
         }
     }
 }
