@@ -166,8 +166,6 @@ public class BallClient extends SimpleApplication {
             if (message instanceof BallUpdateMessage) {
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
                 User user = users.getValue(buMessage.id);
-                System.out.println("Got an update from id " + buMessage.id);
-                System.out.println("user " + user);
                 Ball ghost = user.getGhost();
 
                 // Update the ghost
@@ -234,6 +232,7 @@ public class BallClient extends SimpleApplication {
             ball.moveForward();
             ghost.moveForward();
             ball.adjustToBall(ghost);
+            System.out.println("Client's ghost position: " + ghost.getPosition());
         }
 
         // Send direction to server on a fixed interval

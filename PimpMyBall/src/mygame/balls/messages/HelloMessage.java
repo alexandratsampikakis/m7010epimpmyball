@@ -18,11 +18,9 @@ public class HelloMessage extends AbstractMessage {
     public int secret;
 
     public HelloMessage() {
-        setReliable(true);
     }
     
     public HelloMessage(int secret, long id) {
-        this();
         this.secret = secret;
         this.id = id;
     }
