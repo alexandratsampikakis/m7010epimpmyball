@@ -17,9 +17,10 @@ public class Ball extends RigidBodyControl {
     static protected float friction = 25f, ballMass = 1f, maxSpeed = 20f;
     private long id;
 
-    public Ball(AssetManager assetManager) {
+    public Ball(AssetManager assetManager, long id) {
         super(new SphereCollisionShape(radius), ballMass);
         setFriction(friction);
+        this.id = id;
     }
 
     public Vector3f getPosition() {

@@ -53,8 +53,10 @@ public class BallClient extends SimpleApplication {
     private mygame.balls.Level level;
     //-----------------------------------
     //-----------------------------------
+    private UserData playerUserData;
     static Client centralServerClient;
     static CentralServerListener centralServerListener;
+    private int secret;
     
     public static void main(String[] args) throws IOException, InterruptedException {
         SerializerHelper.initializeClasses();
@@ -63,18 +65,19 @@ public class BallClient extends SimpleApplication {
         
         ServerInfo centralServerInfo = CentralServer.info;
         centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
-                centralServerInfo.NAME, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
+                centralServerInfo.ADDRESS, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
+
 
         //centralServerClient.addMessageListener(new CentralServerListener());
         centralServerListener = new CentralServerListener();
         centralServerClient.addMessageListener(centralServerListener);
-        
+        centralServerClient.start();
         centralServerClient.send(new LoginMessage(userName, passWord));
         
         String stop = "STOOOP!";
         synchronized (stop) {
-        stop.wait();
-    }
+            stop.wait();
+        }
         
         
     }
@@ -88,9 +91,13 @@ public class BallClient extends SimpleApplication {
                 LoginSuccessMessage loginMessage = (LoginSuccessMessage) message;
                 BallClient app;
                 try {
-                    app = new BallClient(loginMessage.serverInfo, loginMessage.userData);
+                    System.out.println("ServerInfo.NAME: " + loginMessage.serverInfo.NAME);
+                    System.out.println("UserData.userName: " + loginMessage.userData.userName);
+                    
+                    app = new BallClient(loginMessage.serverInfo, loginMessage.userData, loginMessage.secret);
                     app.start();
                     app.setPauseOnLostFocus(false);
+                    
                 } catch (Exception ex) {
                     Logger.getLogger(BallClient.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -108,25 +115,30 @@ public class BallClient extends SimpleApplication {
 
     //-----------------------------------
     //-----------------------------------
-    public BallClient(ServerInfo serverInfo, UserData userData) throws Exception {
+    public BallClient(ServerInfo serverInfo, UserData userData, int secret) throws Exception {
         
         client = Network.connectToServer(serverInfo.NAME, serverInfo.VERSION,
                 serverInfo.ADDRESS, serverInfo.PORT, serverInfo.UDP_PORT);
+        client.start();
         
-        client.addMessageListener(new BallServerListener(), BallUpdateMessage.class,
-                UserAddedMessage.class, ConnectedUsersMessage.class);
-        long playerId = userData.getId();
-        setupUser(userData);
-        playerUser = users.getValue(playerId);
+        this.playerUserData = userData;
+        this.secret = secret;
     }
     
     @Override
     public void simpleInitApp() {
-        client.start();
+        client.addMessageListener(new BallServerListener(), BallUpdateMessage.class,
+                UserAddedMessage.class, ConnectedUsersMessage.class);
+        client.send(new HelloMessage(secret));
         initAppStates();
         initKeys();
         initShadow();
         initLevel();
+        setupUser(playerUserData);
+        playerUser = users.getValue(playerUserData.id);
+        playerUser.getBall().setPosition(new Vector3f(0f, 100f, 0f));
+        playerUser.getGhost().setPosition(new Vector3f(0f, 100f, 0f));
+        setCameraTarget(playerUser.getGeometry());
     }
     
     private void sendBallDirectionMessage() {
@@ -135,10 +147,6 @@ public class BallClient extends SimpleApplication {
         Vector3f playerDirection = playerBall.getDirection();
         BallDirectionMessage bdMessage = new BallDirectionMessage(playerId, playerDirection);
         client.send(bdMessage);
-    }
-    
-    private void sendHelloMessage(long id, int secret) {
-        client.send(new HelloMessage(secret, id));
     }
     
     private class BallServerListener implements MessageListener<Client> {
@@ -158,9 +166,11 @@ public class BallClient extends SimpleApplication {
         
         public Object call() {
             if (message instanceof BallUpdateMessage) {
-                
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
                 User user = users.getValue(buMessage.id);
+                                System.out.println("Got an update from id " + buMessage.id);
+
+                System.out.println("user " + user);
                 Ball ghost = user.getGhost();
 
                 // Update the ghost
@@ -169,16 +179,16 @@ public class BallClient extends SimpleApplication {
                 ghost.setDirection(buMessage.direction);
                 
             } else if (message instanceof UserAddedMessage) {
-                
                 UserAddedMessage uaMessage = (UserAddedMessage) message;
+                System.out.println("Add user " + uaMessage.userData.userName);
                 setupUser(uaMessage.userData);
                 
             } else if (message instanceof ConnectedUsersMessage) {
-                
                 ConnectedUsersMessage cuMessage = (ConnectedUsersMessage) message;
                 ArrayList<UserData> userDataList = cuMessage.userDataList;
                 for (UserData userData : userDataList) {
                     setupUser(userData);
+                    System.out.println("Connected user: " + userData.userName);
                 }
                 
             } else {
@@ -204,6 +214,7 @@ public class BallClient extends SimpleApplication {
         camDir.y = 0f;
         camLeft.y = 0f;
         playerBall.setDirection(Vector3f.ZERO);
+        
         
         if (left) {
             playerBall.setDirection(camLeft);
@@ -238,6 +249,9 @@ public class BallClient extends SimpleApplication {
     private ActionListener actionListener = new ActionListener() {
         
         public void onAction(String binding, boolean isPressed, float tpf) {
+            
+            
+            
             if (binding.equals("CharLeft")) {
                 if (isPressed) {
                     left = true;
