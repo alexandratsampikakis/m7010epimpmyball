@@ -6,7 +6,7 @@ package mygame;
 
 import com.jme3.math.Vector3f;
 import java.util.HashMap;
-import mygame.network.User;
+import mygame.balls.UserData;
 
 
 /**
@@ -62,7 +62,7 @@ public class AuthServer {
      * @param pass
      * @return 
      */
-    public User authenticate(String name, String pass) {
+    public UserData authenticate(String name, String pass) {
         
         ASUser u = users.get(name);
         

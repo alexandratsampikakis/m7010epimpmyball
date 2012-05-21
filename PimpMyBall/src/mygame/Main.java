@@ -127,8 +127,6 @@ public class Main extends SimpleApplication {
     @Override
     public void simpleInitApp() {
         //Creating a sky
-        rootNode.attachChild(SkyFactory.createSky(
-                assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
 
         //Play sound
         AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);

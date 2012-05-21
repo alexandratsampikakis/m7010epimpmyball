@@ -16,7 +16,7 @@ import mygame.balls.client.User;
 @Serializable
 public class UserAddedMessage extends AbstractMessage {
 
-    private UserData userData;
+    public UserData userData;
 
     public UserAddedMessage() {
         setReliable(true);
@@ -28,7 +28,7 @@ public class UserAddedMessage extends AbstractMessage {
         this.userData = userData;
     }
 
-    public UserData getUserData() {
+    /*public UserData getUserData() {
         return userData;
-    }
+    }*/
 }

@@ -15,8 +15,8 @@ import com.jme3.network.serializing.Serializable;
 @Serializable
 public class BallDirectionMessage extends AbstractMessage {
 
-    private Vector3f direction = Vector3f.ZERO;
-    private long id = 0;
+    public Vector3f direction = Vector3f.ZERO;
+    public long id = 0;
 
     public BallDirectionMessage() {
         setReliable(false);
@@ -28,11 +28,11 @@ public class BallDirectionMessage extends AbstractMessage {
         this.direction = direction;
     }
 
-    public Vector3f getDirection() {
+    /*public Vector3f getDirection() {
         return direction;
     }
 
     public long getId() {
         return id;
-    }
+    }*/
 }

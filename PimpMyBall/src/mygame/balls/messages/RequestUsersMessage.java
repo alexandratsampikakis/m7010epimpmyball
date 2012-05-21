@@ -14,7 +14,7 @@ import com.jme3.network.serializing.Serializable;
 @Serializable
 public class RequestUsersMessage extends AbstractMessage {
 
-    private long id;
+    public long id;
 
     public RequestUsersMessage() {
         setReliable(true);
@@ -26,7 +26,7 @@ public class RequestUsersMessage extends AbstractMessage {
         this.id = id;
     }
 
-    public long getId() {
+    /*public long getId() {
         return this.id;
-    }
+    }*/
 }

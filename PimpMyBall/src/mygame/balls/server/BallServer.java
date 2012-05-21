@@ -4,6 +4,7 @@ import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.network.AbstractMessage;
+import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
@@ -11,10 +12,14 @@ import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import com.jme3.network.Server;
-import com.jme3.network.serializing.Serializer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
+import mygame.admin.BallAcceptedMessage;
+import mygame.admin.GameServerStartedMessage;
+import mygame.admin.IncomingBallMessage;
+import mygame.admin.SerializerHelper;
+import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
 import mygame.balls.Level;
 import mygame.balls.TestLevel;
@@ -28,83 +33,47 @@ import mygame.util.BiMap;
 
 public class BallServer extends SimpleApplication {
 
-    public static void initializeClasses() {
-        // Doing it here means that the client code only needs to
-        // call our initialize. 
-        Serializer.registerClass(BallUpdateMessage.class);
-        Serializer.registerClass(BallDirectionMessage.class);
-        Serializer.registerClass(UserAddedMessage.class);
-        Serializer.registerClass(HelloMessage.class);
-        Serializer.registerClass(ConnectedUsersMessage.class);
-        Serializer.registerClass(RequestUsersMessage.class);
-    }
-    private Level level;
-    private BulletAppState bulletAppState;
-    private static Server server;
+    private Server server;
+    private Client centralServerClient;
     public static final String NAME = "Pimp My Ball Server";
-    public static final int VERSION = 1;
-    public static final int PORT = 5110;
-    public static final int UDP_PORT = 5110;
+    public static final ServerInfo info = new ServerInfo("Central Server", "localhost", 5110);
     private static int timeCounter = 0;
     private BiMap<Long, User> users = new BiMap<Long, User>();
-    private BiMap<Long, UserData> pendingUserData = new BiMap<Long, UserData>();
+    private Level level;
+    private BulletAppState bulletAppState;
+    private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
     AreaOfInterestManager aoiManager;
 
-    public static void main(String[] args) throws Exception {
-        initializeClasses();
-        BallServer app = new BallServer();
-        app.start();
-        app.setPauseOnLostFocus(false);
+    /*public static void main(String[] args) throws Exception {
+    initializeClasses();
+    BallServer app = new BallServer();
+    app.start();
+    app.setPauseOnLostFocus(false);
+    synchronized (NAME) {
+    NAME.wait();
+    }
+    }*/
+    public BallServer(ServerInfo centralServerInfo) throws Exception {
+        server = Network.createServer(info.NAME, info.VERSION, info.PORT, info.UDP_PORT);
+        server.addMessageListener(new ClientMessageListener());
+        server.addConnectionListener(new ClientConnectionListener());
 
-        // Use this to test the client/server name version check
-        server = Network.createServer(NAME, VERSION, PORT, UDP_PORT);
-        server.start();
-
-        synchronized (NAME) {
-            NAME.wait();
-        }
+        centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
+                centralServerInfo.NAME, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
+        centralServerClient.addMessageListener(new CentralServerListener());
     }
 
     @Override
     public void simpleInitApp() {
+        SerializerHelper.initializeClasses();
         initAppState();
         initLevel();
         aoiManager = new AreaOfInterestManager(users);
-        MessageListener messageListener = new MessageListener<HostedConnection>() {
-
-            public void messageReceived(HostedConnection conn, Message message) {
-                if (message instanceof BallDirectionMessage) {
-                    BallServer.this.enqueue(new MessageReceived((BallDirectionMessage) message, conn));
-                }
-            }
-        };
-        server.addMessageListener(messageListener);
-
-        ConnectionListener connectionListener = new ConnectionListener() {
-
-            public void connectionAdded(Server server, HostedConnection conn) {
-                //Nåt alls?
-            }
-
-            public void connectionRemoved(Server server, HostedConnection conn) {
-                BallServer.this.enqueue(new ConnectionLost(conn));
-            }
-        };
-        server.addConnectionListener(connectionListener);
         flyCam.setMoveSpeed(30f);//KAAAST!!!!!
-    }
-
-    @Override
-    public void update() {
-        super.update();
-        if (timeCounter > 5) {
-            timeCounter = 0;
-            broadcastBallData();
-        }
-        timeCounter++;
-        for (User user : users.getValues()) {
-            user.getBall().moveForward();
-        }
+        server.start();
+        centralServerClient.start();
+        // Send its own server info to the central server
+        centralServerClient.send(new GameServerStartedMessage(info));
     }
 
     private void broadcastBallData() {
@@ -122,7 +91,7 @@ public class BallServer extends SimpleApplication {
      * Send information about a new user to all other users
      * @param newId The ID of the new user
      */
-    private void broadUserAddedMessage(long newId) {
+    private void broadcastNewUser(long newId) {
         User newUser = users.getValue(newId);
         HostedConnection newConnection = newUser.getConnection();
         UserData newUserData = newUser.getUserData();
@@ -136,14 +105,14 @@ public class BallServer extends SimpleApplication {
      * Transmit data on all users to the sender
      * @param connection 
      */
-    private void sendConnectedUsersMessage(HostedConnection connection) {
-        ArrayList<UserData> userData = new ArrayList<UserData>();
+    private void broadcastConnectedUsers(HostedConnection connection) {
+        ArrayList<UserData> userDataList = new ArrayList<UserData>();
 
         for (User user : users.getValues()) {
-            userData.add(user.getUserData());
+            userDataList.add(user.getUserData());
         }
-        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(userData);
-        server.broadcast(Filters.notEqualTo(connection), cuMessage);
+        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(userDataList);
+        server.broadcast(Filters.equalTo(connection), cuMessage);
     }
 
     private class MessageReceived implements Callable {
@@ -162,32 +131,30 @@ public class BallServer extends SimpleApplication {
             if (message instanceof BallDirectionMessage) {
 
                 BallDirectionMessage bdMessage = (BallDirectionMessage) message;
-                long id = bdMessage.getId();
-                Ball ball = users.getValue(id).getBall();
-                ball.setDirection(bdMessage.getDirection());
+                Ball ball = users.getValue(bdMessage.id).getBall();
+                ball.setDirection(bdMessage.direction);
 
             } else if (message instanceof HelloMessage) {
 
                 HelloMessage helloMessage = (HelloMessage) message;
-                long authCode = helloMessage.getAuthCode();
-                UserData userData = pendingUserData.getValue(authCode);
+                // extract the messages UserData
+                UserData userData = pendingUserData.removeKey(helloMessage.secret);
                 // check that everything is in order!
                 if (userData != null) {
                     long callerId = userData.getId();
                     // Send information about all active player the the new user:
-                    sendConnectedUsersMessage(conn);
+                    broadcastConnectedUsers(conn);
                     // Add the new user
                     setupUser(userData, conn);
                     // Inform the other players of the new user.
-                    broadUserAddedMessage(callerId);
+                    broadcastNewUser(callerId);
                 }
                 // else felmeddelande???
 
-
             } else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
-                long id = ruMessage.getId();
-                sendConnectedUsersMessage(conn);
+                long id = ruMessage.id;
+                broadcastConnectedUsers(conn);
 
             } else {
 
@@ -209,6 +176,56 @@ public class BallServer extends SimpleApplication {
         public Object call() {
             System.err.println("Ååå nej, en connection tappades, och Nicke gör inget åt det...");
             return conn;
+        }
+    }
+
+    private class ClientMessageListener implements MessageListener<HostedConnection> {
+
+        public void messageReceived(HostedConnection source, Message message) {
+            if (message instanceof BallDirectionMessage) {
+                BallServer.this.enqueue(new MessageReceived((BallDirectionMessage) message, source));
+            }
+        }
+    }
+
+    private class CentralServerListener implements MessageListener<Client> {
+
+        public void messageReceived(Client source, Message message) {
+
+            if (message instanceof IncomingBallMessage) {
+                IncomingBallMessage ibMessage = (IncomingBallMessage) message;
+                pendingUserData.put(ibMessage.secret, ibMessage.userData);
+                centralServerClient.send(new BallAcceptedMessage(ibMessage.secret));
+            }
+        }
+    }
+
+    private class ClientConnectionListener implements ConnectionListener {
+
+        public void connectionAdded(Server server, HostedConnection conn) {
+        }
+
+        public void connectionRemoved(Server server, HostedConnection conn) {
+            BallServer.this.enqueue(new ConnectionLost(conn));
+        }
+    }
+
+    @Override
+    public void destroy() {
+        server.close();
+        super.destroy();
+    }
+
+    @Override
+    public void update() {
+        super.update();
+        if (timeCounter > 5) {
+            timeCounter = 0;
+            broadcastBallData();
+        }
+        timeCounter++;
+        for (User user : users.getValues()) {
+            user.getBall().moveForward();
         }
     }
 
@@ -235,11 +252,5 @@ public class BallServer extends SimpleApplication {
         rootNode.attachChild(level);
         level.initLighting(); //Kasta sen!!!
         bulletAppState.getPhysicsSpace().add(level.getTerrain());
-    }
-
-    @Override
-    public void destroy() {
-        server.close();
-        super.destroy();
     }
 }
