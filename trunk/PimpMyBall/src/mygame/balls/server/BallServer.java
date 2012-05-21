@@ -3,6 +3,7 @@ package mygame.balls.server;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.math.Vector3f;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
@@ -36,7 +37,7 @@ public class BallServer extends SimpleApplication {
     private Server server;
     private Client centralServerClient;
     public static final String NAME = "Pimp My Ball Server";
-    public static final ServerInfo info = new ServerInfo("Central Server", "localhost", 5110);
+    public static final ServerInfo info = new ServerInfo("Ball Server", "192.168.1.3", 5110);
     private static int timeCounter = 0;
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private Level level;
@@ -59,7 +60,7 @@ public class BallServer extends SimpleApplication {
         server.addConnectionListener(new ClientConnectionListener());
 
         centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
-                centralServerInfo.NAME, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
+                centralServerInfo.ADDRESS, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
         centralServerClient.addMessageListener(new CentralServerListener());
     }
 
@@ -117,23 +118,36 @@ public class BallServer extends SimpleApplication {
 
     private class MessageReceived implements Callable {
 
-        AbstractMessage message;
+        Message message;
         HostedConnection conn;
 
-        public MessageReceived(AbstractMessage message, HostedConnection conn) {
+        public MessageReceived(Message message, HostedConnection conn) {
             this.message = message;
             this.conn = conn;
         }
 
         public Object call() {
 
+            System.out.println("BallServer Received message " + message);
+            
             // If it is a ballmessage, set the direction of the ball
             if (message instanceof BallDirectionMessage) {
-
+                
                 BallDirectionMessage bdMessage = (BallDirectionMessage) message;
-                Ball ball = users.getValue(bdMessage.id).getBall();
-                ball.setDirection(bdMessage.direction);
-
+                
+                long uid = bdMessage.id;
+                User user = users.getValue(uid);
+                Vector3f dir = bdMessage.direction;
+                
+                System.out.println("Id: " + uid);
+                System.out.println("User: " + user);
+                System.out.println("Direction: " + dir);
+                
+                if (user != null && dir != null) {
+                    Ball ball = user.getBall();
+                    ball.setDirection(dir);
+                }
+                
             } else if (message instanceof HelloMessage) {
 
                 HelloMessage helloMessage = (HelloMessage) message;
@@ -182,9 +196,7 @@ public class BallServer extends SimpleApplication {
     private class ClientMessageListener implements MessageListener<HostedConnection> {
 
         public void messageReceived(HostedConnection source, Message message) {
-            if (message instanceof BallDirectionMessage) {
-                BallServer.this.enqueue(new MessageReceived((BallDirectionMessage) message, source));
-            }
+            BallServer.this.enqueue(new MessageReceived(message, source));
         }
     }
 
@@ -193,6 +205,9 @@ public class BallServer extends SimpleApplication {
         public void messageReceived(Client source, Message message) {
 
             if (message instanceof IncomingBallMessage) {
+                
+                System.out.println("BallServer Received message " + message);
+                
                 IncomingBallMessage ibMessage = (IncomingBallMessage) message;
                 pendingUserData.put(ibMessage.secret, ibMessage.userData);
                 centralServerClient.send(new BallAcceptedMessage(ibMessage.secret));
@@ -203,6 +218,7 @@ public class BallServer extends SimpleApplication {
     private class ClientConnectionListener implements ConnectionListener {
 
         public void connectionAdded(Server server, HostedConnection conn) {
+            System.out.println("Connection added " + conn);
         }
 
         public void connectionRemoved(Server server, HostedConnection conn) {
@@ -231,9 +247,14 @@ public class BallServer extends SimpleApplication {
 
     private void setupUser(UserData userData, HostedConnection conn) {
         long callerId = userData.getId();
+        
+        System.out.println("setupUser with id: " + callerId);
+        
         User user = new User(assetManager, userData, conn);
         users.put(callerId, user);
 
+        System.out.println("user is " + users.getValue(callerId));
+        
         level.attachChild(user.getGeometry());
         bulletAppState.getPhysicsSpace().add(user.getBall());
     }
