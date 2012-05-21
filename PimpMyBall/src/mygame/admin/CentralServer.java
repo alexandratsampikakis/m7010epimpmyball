@@ -97,7 +97,12 @@ public class CentralServer {
                         LoginMessage lm = (LoginMessage) m;
                         UserData userData = authServer.authenticate(lm.userName, lm.password);
 
+                        System.out.println("Received message from " + lm.userName);
+                        System.out.println("Password is " + lm.password);
+                        System.out.println("Found user data: " + userData);
+                        
                         if (userData == null) {
+                            
                             sendMessage(source, new LoginFailedMessage(LoginError.WRONG_PASSWORD));
                             
                         } else {
@@ -120,6 +125,8 @@ public class CentralServer {
                             
                             // Store the connection and wait for
                             pendingUsers.put(secret, info);
+                            
+                            System.out.println("Sending IncomingBallMessage.");
                         }
 
                     } 
@@ -140,10 +147,16 @@ public class CentralServer {
                         BallAcceptedMessage bam = (BallAcceptedMessage) m;
                         PendingUserInfo info = pendingUsers.remove(bam.secret);
                         
+                        System.out.println("Reply from BallServer.");
+                        
                         if (info != null) {
                             LoginSuccessMessage message = new LoginSuccessMessage(
                                     info.userData, bam.secret, info.serverInfo);
                             sendMessage(info.conn, message);
+                            
+                            System.out.println("Sending LoginSuccessMessage.");
+                        } else {
+                            System.out.println("Null info!!!");
                         }
                         
                     } else if (m instanceof BallRejectedMessage) {

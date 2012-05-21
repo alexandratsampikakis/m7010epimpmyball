@@ -14,15 +14,15 @@ import com.jme3.network.serializing.Serializable;
 @Serializable
 public class ServerInfo {
     
-    public final String NAME;
-    public final String ADDRESS;
-    public final int VERSION = 1;
-    public final int PORT;
-    public final int UDP_PORT;
+    public String NAME;
+    public String ADDRESS;
+    public int VERSION = 1;
+    public int PORT;
+    public int UDP_PORT;
 
     public ServerInfo() {
-        NAME = ADDRESS = null;
-        PORT = UDP_PORT = -1;
+        // NAME = ADDRESS = null;
+        // PORT = UDP_PORT = -1;
     }
     public ServerInfo(String name, String ip, int port) {
         this.NAME = name;
