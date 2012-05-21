@@ -69,13 +69,8 @@ public class Ball extends RigidBodyControl {
     }
 
     public void adjustToBall(Ball adjustor) {
-        // If too far, oh snap!
         Vector3f adjustPosition = adjustor.getPosition();
-        Vector3f distanceVector = adjustPosition.subtract(getPosition());
-        if (distanceVector.length() > 5) { //Randomly chosen, fix this later!!
-            setPosition(adjustPosition);
-        } else if (distanceVector.length() > 1) {
-            applyCentralForce(distanceVector.normalize().mult(20f));
-        }
+        Vector3f adjustmentVector = adjustPosition.subtract(getPosition()).mult(0.05f);
+        Vector3f newPosition = getPosition().add(adjustmentVector);
     }
 }
