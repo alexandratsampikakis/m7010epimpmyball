@@ -56,11 +56,11 @@ public class GomokuClient extends SimpleApplication {
         try {
             client = Network.connectToServer(GomokuServer.NAME, GomokuServer.VERSION,
                     host, GomokuServer.PORT, GomokuServer.UDP_PORT);
-            
             client.addMessageListener(new MessageListener<Client>() {
                 public void messageReceived(Client source, Message m) {
                     enqueue(new MessageParser(m));
                 }
+               
             }, NewGameMessage.class);
             
             client.start();

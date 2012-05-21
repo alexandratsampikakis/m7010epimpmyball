@@ -12,7 +12,9 @@ import java.util.List;
 
 
 /**
- *
+ * Maintains a bidirectional dictionary that can be searched
+ * with both by value and key.
+ * 
  * @author Jimmy
  */
 @Serializable

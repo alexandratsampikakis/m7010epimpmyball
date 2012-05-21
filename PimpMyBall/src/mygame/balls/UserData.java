@@ -4,26 +4,28 @@
  */
 package mygame.balls;
 
-import com.jme3.asset.AssetManager;
-import com.jme3.bullet.collision.shapes.SphereCollisionShape;
-import com.jme3.bullet.control.RigidBodyControl;
-import com.jme3.material.Material;
 import com.jme3.math.Vector3f;
+import com.jme3.network.serializing.Serializable;
 
 /**
  *
  * @author nicnys-8
  */
-
+@Serializable
 public class UserData {
+    
     //private Vector3f latestCorrectPosition, latestCorrectVelocity;
-    private long id;
-    private String userName;
-    private int rank;
-    private int materialIndex;
-    private Vector3f position;
-    private long bling;
+    
+    public long id;
+    public String userName;
+    public int rank;
+    public int materialIndex;
+    public Vector3f position;
+    public long bling;
 
+    public UserData() {
+    }
+    
     public UserData(long id) {
         this.id = id;
     }

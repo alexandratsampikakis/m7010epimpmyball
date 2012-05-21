@@ -5,6 +5,17 @@
 package mygame.admin;
 
 import com.jme3.network.serializing.Serializer;
+import mygame.balls.UserData;
+import mygame.balls.messages.BallDirectionMessage;
+import mygame.balls.messages.BallUpdateMessage;
+import mygame.balls.messages.ConnectedUsersMessage;
+import mygame.balls.messages.HelloMessage;
+import mygame.balls.messages.RequestUsersMessage;
+import mygame.balls.messages.UserAddedMessage;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.GridSize;
+import mygame.boardgames.network.GomokuMessage;
+import mygame.boardgames.network.NewGameMessage;
 
 /**
  *
@@ -12,9 +23,40 @@ import com.jme3.network.serializing.Serializer;
  */
 public class SerializerHelper {
  
-    public static void initializeClientClasses() {
+    // public static void initializeClientClasses() {}
+    // public static void initializeCentralServerClasses() {}
+    // public static void initializeBallServerClasses() {}
+    
+    public static void initializeClasses() {
+        
+        // Login messages
         Serializer.registerClass(LoginMessage.class);
         Serializer.registerClass(LoginFailedMessage.class);
+        Serializer.registerClass(LoginSuccessMessage.class);
+        
+        // Ball server messages
+        Serializer.registerClass(GameServerStartedMessage.class);
+        Serializer.registerClass(BackupDataMessage.class);
+        Serializer.registerClass(IncomingBallMessage.class);
+        Serializer.registerClass(BallAcceptedMessage.class);
+        Serializer.registerClass(BallRejectedMessage.class);
+        
+        Serializer.registerClass(UserData.class);
+        Serializer.registerClass(ServerInfo.class);
+        
+        // Ball messages
+        Serializer.registerClass(HelloMessage.class);
+        Serializer.registerClass(BallUpdateMessage.class);
+        Serializer.registerClass(BallDirectionMessage.class);
+        Serializer.registerClass(ConnectedUsersMessage.class);
+        Serializer.registerClass(RequestUsersMessage.class);
+        Serializer.registerClass(UserAddedMessage.class);
+        
+        // Gomoku messages
+        Serializer.registerClass(GridPoint.class);
+        Serializer.registerClass(GridSize.class);
+        Serializer.registerClass(GomokuMessage.class);
+        Serializer.registerClass(NewGameMessage.class);
     }
     
 }

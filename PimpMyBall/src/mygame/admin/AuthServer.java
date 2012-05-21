@@ -6,6 +6,7 @@ package mygame.admin;
 
 import com.jme3.math.Vector3f;
 import java.util.HashMap;
+import java.util.Random;
 import mygame.balls.UserData;
 
 
@@ -15,19 +16,22 @@ import mygame.balls.UserData;
  */
 public class AuthServer {
     
+    private static Random rand = new Random();
+    
     private static class ASUser {
         
-        Vector3f pos;
+        Vector3f pos = new Vector3f(0, 100, 0);
         String name;
         String password;
         long userID;
-        int rank = 1000;
+        int rank;
         boolean active = false;
         
         ASUser(String name, String password, long id) {
             this.name = name;
             this.password = password;
             this.userID = id;
+            this.rank = rand.nextInt(2000);
         }
     }
     
@@ -65,9 +69,16 @@ public class AuthServer {
     public UserData authenticate(String name, String pass) {
         
         ASUser u = users.get(name);
-        
+
         if (u != null && u.password.equals(pass)) {
-            // Create and return user
+            UserData data = new UserData();
+            data.id = u.userID;
+            data.rank = u.rank;
+            data.userName = u.name;
+            data.position = u.pos;
+            data.bling = 0;
+            data.materialIndex = 0;
+            return data;
         }
         
         return null;
