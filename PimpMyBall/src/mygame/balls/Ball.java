@@ -70,7 +70,7 @@ public class Ball extends RigidBodyControl {
 
     public void adjustToBall(Ball adjustor) {
         Vector3f adjustPosition = adjustor.getPosition();
-        Vector3f adjustmentVector = adjustPosition.subtract(getPosition()).mult(0.05f);
+        Vector3f adjustmentVector = adjustPosition.subtract(getPosition()).mult(0.1f);
         Vector3f newPosition = getPosition().add(adjustmentVector);
     }
 }

@@ -62,6 +62,7 @@ public class BallServer extends SimpleApplication {
         centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
                 centralServerInfo.ADDRESS, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
         centralServerClient.addMessageListener(new CentralServerListener());
+        this.setPauseOnLostFocus(false);
     }
 
     @Override
@@ -110,6 +111,8 @@ public class BallServer extends SimpleApplication {
         ArrayList<UserData> userDataList = new ArrayList<UserData>();
 
         for (User user : users.getValues()) {
+            UserData userData = user.getUserData();
+            userData.position = user.getBall().getPosition();
             userDataList.add(user.getUserData());
         }
         ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(userDataList);
@@ -167,7 +170,7 @@ public class BallServer extends SimpleApplication {
 
             } else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
-                long id = ruMessage.id;
+                //long id = ruMessage.id;
                 broadcastConnectedUsers(conn);
 
             } else {
@@ -257,6 +260,7 @@ public class BallServer extends SimpleApplication {
         
         level.attachChild(user.getGeometry());
         bulletAppState.getPhysicsSpace().add(user.getBall());
+        user.getBall().setPosition(userData.position);
     }
 
     private void initAppState() {
