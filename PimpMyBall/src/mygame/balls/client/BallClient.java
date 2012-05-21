@@ -136,6 +136,7 @@ public class BallClient extends SimpleApplication {
         initLevel();
         setupUser(playerUserData);
         playerUser = users.getValue(playerUserData.id);
+        playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
     }
 

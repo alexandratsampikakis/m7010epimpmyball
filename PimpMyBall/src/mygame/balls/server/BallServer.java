@@ -3,6 +3,8 @@ package mygame.balls.server;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.bullet.collision.PhysicsCollisionEvent;
+import com.jme3.bullet.collision.PhysicsCollisionListener;
 import com.jme3.math.Vector3f;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.Client;
@@ -228,6 +230,20 @@ public class BallServer extends SimpleApplication {
             BallServer.this.enqueue(new ConnectionLost(conn));
         }
     }
+    
+    public class BallCollisionListener implements PhysicsCollisionListener {
+
+    public void collision(PhysicsCollisionEvent event) {
+        Object a = event.getObjectA();
+        Object b = event.getObjectB();
+        if (a instanceof Ball && b instanceof Ball) {
+            Ball ballA = (Ball) a;
+            Ball ballB = (Ball) b;
+            User userA = users.getValue(ballA.getId());
+            User userB = users.getValue(ballB.getId());
+        }
+    }
+}
 
     @Override
     public void destroy() {
