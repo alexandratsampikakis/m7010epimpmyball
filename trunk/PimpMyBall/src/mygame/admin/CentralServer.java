@@ -12,34 +12,39 @@ import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
 import com.jme3.network.Server;
 import com.jme3.network.serializing.Serializer;
+import com.jme3.system.JmeContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import mygame.balls.UserData;
+import mygame.balls.server.BallServer;
 
 /**
  *
  * @author Jimmy
  */
 public class CentralServer {
-    
-    private static final String NAME = "Central Server";
-    private static final int VERSION = 1;
-    private static final int PORT = 5110;
-    private static final int UDP_PORT = 5110;
 
-    public static final ServerInfo info = new ServerInfo("Central Server", "localhost", 5110);
+    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.3", 5111);
             
     private Server server;
-    
+    private AuthServer authServer = AuthServer.createServer("fakeAuth");
     private ArrayList<HostedConnection> hostedConnections = new ArrayList<HostedConnection>();
     private ArrayList<HostedConnection> gameServerConnections = new ArrayList<HostedConnection>();
     private HashMap<Integer, PendingUserInfo> pendingUsers = new HashMap<Integer, PendingUserInfo>();
     
-    private AuthServer authServer = AuthServer.createServer("fakeAuth");
     
-    public static void initializeClasses() {
-        Serializer.registerClass(LoginMessage.class);
-        Serializer.registerClass(LoginFailedMessage.class);
+    public static void main(String[] args) throws Exception {
+        
+        CentralServer cs = new CentralServer();
+        cs.server.start();
+        
+        BallServer balls = new BallServer(info);
+        balls.start(); // JmeContext.Type.Headless);
+        
+        // Run FOREVER!
+        synchronized (info) {
+            info.wait();
+        }
     }
     
     private class PendingUserInfo {
@@ -48,12 +53,11 @@ public class CentralServer {
          UserData userData;
     }
     
-    
     public CentralServer() throws Exception {
         
-        initializeClasses();
+        SerializerHelper.initializeClasses();
 
-        server = Network.createServer(NAME, VERSION, PORT, UDP_PORT);
+        server = Network.createServer(info.NAME, info.VERSION, info.PORT, info.UDP_PORT);
         
         server.addMessageListener(clientListener, 
                 LoginMessage.class);

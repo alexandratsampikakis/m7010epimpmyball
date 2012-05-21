@@ -85,6 +85,8 @@ public class GomokuServer {
                 
                 // startGame(conn, null);
                 
+                System.out.println(conn.getAddress());
+                
                 if (size == 2) {
                     startGame(hostedConnections.get(size - 2), hostedConnections.get(size - 1));
                 }

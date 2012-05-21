@@ -20,6 +20,10 @@ public class ServerInfo {
     public final int PORT;
     public final int UDP_PORT;
 
+    public ServerInfo() {
+        NAME = ADDRESS = null;
+        PORT = UDP_PORT = -1;
+    }
     public ServerInfo(String name, String ip, int port) {
         this.NAME = name;
         this.ADDRESS = ip;
