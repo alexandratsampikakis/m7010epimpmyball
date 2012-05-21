@@ -6,6 +6,7 @@ package mygame.balls.server;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
+import com.jme3.math.Vector3f;
 import com.jme3.network.HostedConnection;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Sphere;
@@ -27,7 +28,8 @@ public class User {
     public User(AssetManager assetManager, UserData userData, HostedConnection connection) {
         userData = this.userData;
         id = userData.getId();
-        ball = new Ball(assetManager);
+        ball = new Ball(assetManager, id);
+        ball.setPosition(userData.position);
         this.connection = connection;
         addGeometry(assetManager);
     }

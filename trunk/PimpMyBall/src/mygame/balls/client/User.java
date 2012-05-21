@@ -24,10 +24,12 @@ public class User {
     private long id;
 
     public User(AssetManager assetManager, UserData userData) {
-        userData = this.userData;
+        this.userData = userData;
         id = userData.getId();
-        ball = new Ball(assetManager);
-        ghost = new Ball(assetManager);
+        ball = new Ball(assetManager, id);
+        ghost = new Ball(assetManager, id);
+        ball.setPosition(userData.position);
+        ghost.setPosition(userData.position);
         addGeometry(assetManager);
     }
     
