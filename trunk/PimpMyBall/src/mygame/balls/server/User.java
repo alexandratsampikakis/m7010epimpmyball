@@ -26,10 +26,9 @@ public class User {
     private long id;
 
     public User(AssetManager assetManager, UserData userData, HostedConnection connection) {
-        userData = this.userData;
+        this.userData = userData;
         id = userData.getId();
         ball = new Ball(assetManager, id);
-        ball.setPosition(userData.position);
         this.connection = connection;
         addGeometry(assetManager);
     }

@@ -28,8 +28,6 @@ public class User {
         id = userData.getId();
         ball = new Ball(assetManager, id);
         ghost = new Ball(assetManager, id);
-        ball.setPosition(userData.position);
-        ghost.setPosition(userData.position);
         addGeometry(assetManager);
     }
     
