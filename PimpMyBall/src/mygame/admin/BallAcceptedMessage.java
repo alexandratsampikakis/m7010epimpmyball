@@ -11,8 +11,14 @@ import com.jme3.network.serializing.Serializable;
  * @author Jimmy
  */
 @Serializable
-public class LoginResponseMessage {
+public class BallAcceptedMessage {
 
+    public int secret;
     
+    public BallAcceptedMessage() {
+    }
 
+    public BallAcceptedMessage(int secret) {
+        this.secret = secret;
+    }
 }
