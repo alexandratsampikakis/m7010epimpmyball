@@ -49,6 +49,10 @@ public class User {
         geometry.setMaterial(getBlueMaterial(assetManager));
     }
 
+    public UserData getUserData() {
+        return userData;
+    }
+    
     public Geometry getGeometry() {
         return geometry;
     }

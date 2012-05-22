@@ -326,12 +326,16 @@ public class BallClient extends SimpleApplication {
         ShadowUtil.updateFrustumPoints2(shadowCam, points);
     }
 
+    public void chasePlayer() {
+        setCameraTarget(playerUser.getGeometry());
+    }
+
     private void setCameraTarget(Geometry target) {
         flyCam.setEnabled(false);
         chaseCamera = new ChaseCamera(cam, target, inputManager);
         chaseCamera.setDragToRotate(false);
         chaseCamera.setMaxVerticalRotation((float) Math.PI/3);
-        chaseCamera.setDefaultDistance(5f);
+        // chaseCamera.setDefaultDistance(5f);
     }
 
     private void initLevel() {
@@ -342,8 +346,8 @@ public class BallClient extends SimpleApplication {
         ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
     }
 
-    public UserData getPlayerData() {
-        return playerUserData;
+    public User getPlayer() {
+        return playerUser;
     }
     
     public ChaseCamera getChaseCamera() {

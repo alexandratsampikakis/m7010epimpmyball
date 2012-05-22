@@ -44,6 +44,7 @@ import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Network;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
@@ -57,6 +58,7 @@ import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
 import mygame.balls.UserData;
 import mygame.balls.client.BallClient;
+import mygame.balls.client.User;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 
@@ -98,7 +100,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
             BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
             BitmapText ch = new BitmapText(guiFont, false);
             int size = guiFont.getCharSet().getRenderedSize();
-            ch.setSize(size * 2);
+            ch.setSize(size);
             ch.setText(text);
             ch.setLocalTranslation(16, app.getCamera().getHeight() - 16, 0);
             ch.setName("DisplayText");
@@ -156,10 +158,6 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     public void initialize(AppStateManager stateManager, Application app) {
         super.initialize(stateManager, app);
         
-        System.out.println("Why is this NOT done!?!??!??");
-        
-        this.app = (BallClient) app;
-
         InputManager inputManager = app.getInputManager();
         
         // Mouse
@@ -167,7 +165,30 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         inputManager.addListener(this, "click");
         
         initControls();
+        
+        System.out.println("Initializing " + this);
     }
+    
+    @Override
+    public void stateAttached(AppStateManager stateManager) {
+        super.stateAttached(stateManager);
+
+        app.getChaseCamera().setEnabled(false);
+        app.getFlyByCamera().setEnabled(true);
+        app.getFlyByCamera().setMoveSpeed(0);
+
+        System.out.println("Attached " + this + ".");
+    }
+
+    @Override
+    public void stateDetached(AppStateManager stateManager) {
+        super.stateDetached(stateManager);
+        
+        app.chasePlayer();
+
+        System.out.println("Detached " + this + ".");
+    }
+    
     
     public void startNewGame(GomokuStartMessage msg) {
         
@@ -183,7 +204,8 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         // Create a new game as specified by the message
         game = new GomokuGame(msg);
         
-        UserData playerData = app.getPlayerData();
+        User player = app.getPlayer();
+        UserData playerData = player.getUserData();
         
         // Add players to the game, in correct order
         if (msg.firstPlayerID == playerData.id) {
