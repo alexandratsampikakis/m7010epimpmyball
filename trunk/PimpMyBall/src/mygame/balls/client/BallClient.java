@@ -6,15 +6,17 @@ import java.util.logging.Logger;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
-import com.jme3.network.Network;
 import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
@@ -56,16 +58,15 @@ public class BallClient extends SimpleApplication {
             up = false,
             down = false;
     private mygame.balls.Level level;
+    private ChaseCamera chaseCamera;
     //-----------------------------------
     //-----------------------------------
     private UserData playerUserData;
     static Client centralServerClient;
     static CentralServerListener centralServerListener;
     private int secret;
-
     private BoardGameAppState bgas;
-    
-            
+
     public static void main(String[] args) throws IOException, InterruptedException {
         SerializerHelper.initializeClasses();
         String userName = getString(null, "Login Info", "Enter username:", "nicke");
@@ -73,7 +74,7 @@ public class BallClient extends SimpleApplication {
 
         ServerInfo centralServerInfo = CentralServer.info;
         centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
-        
+
         //centralServerClient.addMessageListener(new CentralServerListener());
         centralServerListener = new CentralServerListener();
         centralServerClient.addMessageListener(centralServerListener);
@@ -127,26 +128,26 @@ public class BallClient extends SimpleApplication {
         client.start();
 
         bgas = new BoardGameAppState(this, client);
-        
+
         this.playerUserData = userData;
         this.secret = secret;
     }
 
     @Override
     public void simpleInitApp() {
-        
-        client.addMessageListener(new BallServerListener(), 
+
+        client.addMessageListener(new BallServerListener(),
                 BallUpdateMessage.class,
-                UserAddedMessage.class, 
+                UserAddedMessage.class,
                 ConnectedUsersMessage.class);
-        
-        client.addMessageListener(new GomokuMessageListener(), 
+
+        client.addMessageListener(new GomokuMessageListener(),
                 GomokuStartMessage.class,
                 GomokuEndMessage.class,
                 GomokuUpdateMessage.class);
-        
+
         client.send(new HelloMessage(secret, playerUserData.id));
-        
+
         initAppStates();
         initKeys();
         initShadow();
@@ -217,68 +218,43 @@ public class BallClient extends SimpleApplication {
     //-----------------------------------------------------------
     @Override
     public void simpleUpdate(float tpf) {
-        
+
         if (playerUser == null) {
             return;
         }
 
-        if (stateManager.hasState(bgas))
-            return;
-        
-        Ball playerBall = playerUser.getBall();
-        Vector3f camDir = cam.getDirection().clone();
-        Vector3f camLeft = cam.getLeft().clone();
-        camDir.y = 0f;
-        camLeft.y = 0f;
-        
-        /*
-        playerBall.setDirection(Vector3f.ZERO);
-       
-        if (left) {
-            playerBall.setDirection(camLeft);
-        }
-        if (right) {
-            playerBall.setDirection(camLeft.negate());
-        }
-        if (up) {
-            playerBall.setDirection(camDir);
-        }
-        if (down) {
-            playerBall.setDirection(camDir.negate());
-        }
-        */
-        
         Vector3f direction = new Vector3f(0, 0, 0);
-        
-        if (left) {
-            direction.addLocal(camLeft);
+        Ball playerBall = playerUser.getBall();
+
+        if (!stateManager.hasState(bgas)) {
+
+            Vector3f camDir = cam.getDirection().clone();
+            Vector3f camLeft = cam.getLeft().clone();
+            camDir.y = 0f;
+            camLeft.y = 0f;
+
+            if (left) {
+                direction.addLocal(camLeft);
+            }
+            if (right) {
+                direction.addLocal(camLeft.negate());
+            }
+            if (up) {
+                direction.addLocal(camDir);
+            }
+            if (down) {
+                direction.addLocal(camDir.negate());
+            }
         }
-        if (right) {
-            direction.addLocal(camLeft.negate());
-        }
-        if (up) {
-            direction.addLocal(camDir);
-        }
-        if (down) {
-            direction.addLocal(camDir.negate());
-        }
-        
         playerBall.setDirection(direction);
-        
         // Move all ghost objects
         for (User user : users.getValues()) {
-            Ball ball = user.getBall();
-            Ball ghost = user.getGhost();
-
-            ball.moveForward();
-            ghost.moveForward();
-            ball.adjustToBall(ghost);
-            System.out.println("Client's ghost position: " + ghost.getPosition());
+            user.Update();
         }
 
         // TODO
         // plussa på tpf och räkna ut tiden i sekunder istället!! 
-        
+
         // Send direction to server on a fixed interval
         if (timeCounter > 20) {
             sendBallDirectionMessage();
@@ -286,7 +262,6 @@ public class BallClient extends SimpleApplication {
         }
         timeCounter++;
     }
-    
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
@@ -314,6 +289,7 @@ public class BallClient extends SimpleApplication {
         user.getBall().setPosition(userData.position);
         user.getGhost().setPosition(userData.position);
         System.out.println("Setting up user with id " + user.getId() + ".");
+        rootNode.attachChild(user.getBlingNode());
     }
 
     private void initKeys() {
@@ -352,8 +328,10 @@ public class BallClient extends SimpleApplication {
 
     private void setCameraTarget(Geometry target) {
         flyCam.setEnabled(false);
-        ChaseCamera camera = new ChaseCamera(cam, target, inputManager);
-        camera.setDragToRotate(false);
+        chaseCamera = new ChaseCamera(cam, target, inputManager);
+        chaseCamera.setDragToRotate(false);
+        chaseCamera.setMaxVerticalRotation((float) Math.PI/3);
+        chaseCamera.setDefaultDistance(5f);
     }
 
     private void initLevel() {
@@ -363,23 +341,22 @@ public class BallClient extends SimpleApplication {
         viewAppState.getPhysicsSpace().add(level.getTerrain());
         ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
     }
-    
-    
+
     public UserData getPlayerData() {
         return playerUserData;
     }
     
-    
-    
-    
-    
-    
+    public ChaseCamera getChaseCamera() {
+        return chaseCamera;
+    }
+
     private class GomokuMessageListener implements MessageListener<Client> {
+
         public void messageReceived(Client source, Message message) {
             BallClient.this.enqueue(new GomokuMessageReceiver(message));
         }
     }
-    
+
     private class GomokuMessageReceiver implements Callable {
 
         Message message;
@@ -391,14 +368,12 @@ public class BallClient extends SimpleApplication {
         public Object call() {
             if (message instanceof GomokuEndMessage) {
                 stateManager.detach(bgas);
-                
+
             } else if (message instanceof GomokuStartMessage) {
                 stateManager.attach(bgas);
-                playerUser.getBall().setDirection(Vector3f.ZERO);
                 bgas.startNewGame((GomokuStartMessage) message);
-                
+
             } else if (message instanceof GomokuUpdateMessage) {
-                
             } else {
 
                 System.err.println("Received odd message:" + message);
