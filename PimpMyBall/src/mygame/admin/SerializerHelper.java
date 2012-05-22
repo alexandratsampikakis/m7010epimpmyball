@@ -14,8 +14,12 @@ import mygame.balls.messages.RequestUsersMessage;
 import mygame.balls.messages.UserAddedMessage;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.GridSize;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.network.broadcast.GomokuEndMessage;
 import mygame.boardgames.network.GomokuMessage;
+import mygame.boardgames.network.broadcast.GomokuStartMessage;
 import mygame.boardgames.network.NewGameMessage;
+import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
 
 /**
  *
@@ -57,6 +61,11 @@ public class SerializerHelper {
         Serializer.registerClass(GridSize.class);
         Serializer.registerClass(GomokuMessage.class);
         Serializer.registerClass(NewGameMessage.class);
+        
+        Serializer.registerClass(GomokuStartMessage.class);
+        Serializer.registerClass(GomokuEndMessage.class);
+        Serializer.registerClass(GomokuUpdateMessage.class);
+        // Serializer.registerClass(CellColor.class);
     }
     
 }

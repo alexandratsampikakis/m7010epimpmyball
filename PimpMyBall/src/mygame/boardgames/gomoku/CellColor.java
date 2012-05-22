@@ -6,12 +6,14 @@ package mygame.boardgames.gomoku;
 
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.network.serializing.Serializable;
 import java.util.Random;
 
 /**
  *
  * @author Jimmy
  */
+@Serializable
 public enum CellColor {
 
     RED,

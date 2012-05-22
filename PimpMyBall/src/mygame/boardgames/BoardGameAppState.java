@@ -55,6 +55,8 @@ import java.awt.Component;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
+import mygame.balls.UserData;
+import mygame.balls.client.BallClient;
 import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 
@@ -64,6 +66,8 @@ import mygame.boardgames.gomoku.player.GomokuPlayer;
 import mygame.boardgames.gomoku.player.LocalPlayer;
 import mygame.boardgames.gomoku.player.RemotePlayerClient;
 import mygame.boardgames.gomoku.player.RemotePlayerServer;
+import mygame.boardgames.network.GomokuClient;
+import mygame.boardgames.network.broadcast.GomokuStartMessage;
 
 
 /**
@@ -77,10 +81,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     private GomokuBoard3D board;
     private GomokuGame game;
    
-    private GomokuPlayer remotePlayer = null;
-    // private GomokuPlayer localPlayer = new LocalPlayer();
-    
-    private SimpleApplication app;
+    private BallClient app;
     private NewGameMessage msg;
     private Client client;
    
@@ -110,6 +111,8 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         }
     }
     
+    
+    private GomokuPlayer remotePlayer = null;
     private GomokuPlayer localPlayer = new GomokuPlayer() {
         @Override
         public void onOpponentMove(GridPoint p) {
@@ -132,15 +135,16 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         }
     };
     
-    public BoardGameAppState(Client client, NewGameMessage msg) {
+    
+    public BoardGameAppState(BallClient app, Client client) {
         super();
         
-        this.msg = msg;
+        this.app = app;
         this.client = client;
         
         client.addMessageListener(new MessageListener<Client>() {
             public void messageReceived(Client source, Message m) {
-                app.enqueue(new MessageParser(m));
+                BoardGameAppState.this.app.enqueue(new MessageParser(m));
             }
         }, GomokuMessage.class);
         
@@ -152,7 +156,9 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     public void initialize(AppStateManager stateManager, Application app) {
         super.initialize(stateManager, app);
         
-        this.app = (SimpleApplication) app;
+        System.out.println("Why is this NOT done!?!??!??");
+        
+        this.app = (BallClient) app;
 
         InputManager inputManager = app.getInputManager();
         
@@ -161,17 +167,26 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         inputManager.addListener(this, "click");
         
         initControls();
-        
-        startNewGame(msg);
     }
     
-    public void startNewGame(NewGameMessage msg) {
+    public void startNewGame(GomokuStartMessage msg) {
+        
+        /*
+        public Vector3f location;
+        public int gameID;
+        public long firstPlayerID;
+        public long secondPlayerID;
+        public CellColor startingColor;
+        public GridSize boardSize;
+         */
         
         // Create a new game as specified by the message
         game = new GomokuGame(msg);
         
+        UserData playerData = app.getPlayerData();
+        
         // Add players to the game, in correct order
-        if (msg.isMyTurn()) {
+        if (msg.firstPlayerID == playerData.id) {
             game.setPlayers(localPlayer, remotePlayer);
         } else {
             game.setPlayers(remotePlayer, localPlayer);
@@ -180,6 +195,14 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         // Create a 3D model of the board
         board = new GomokuBoard3D(app.getAssetManager(), game);
         board.setLocalScale(0.5f);
+        
+        // TODO: räkna ut rotationen också!! :)
+        Vector3f location = msg.firstPlayerPos.interpolate(msg.secondPlayerPos, 0.5f);
+        board.setLocalTranslation(location);
+        
+        app.getCamera().setLocation(msg.firstPlayerPos);
+        app.getCamera().lookAt(location, Vector3f.UNIT_Y);
+        
         app.getRootNode().attachChild(board);
         
         // Start the game

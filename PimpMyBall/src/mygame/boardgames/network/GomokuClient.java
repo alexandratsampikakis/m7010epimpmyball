@@ -12,6 +12,7 @@ import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JOptionPane;
+import mygame.balls.UserData;
 import mygame.boardgames.BoardGameAppState;
 
 
@@ -86,8 +87,8 @@ public class GomokuClient extends SimpleApplication {
         @Override
         public Object call() throws Exception {
             if (msg instanceof NewGameMessage) {
-                BoardGameAppState bgas = new BoardGameAppState(client, (NewGameMessage) msg);
-                stateManager.attach(bgas);
+                /*BoardGameAppState bgas = new BoardGameAppState(client, (NewGameMessage) msg);
+                stateManager.attach(bgas);*/
             }
             return msg;
         }
