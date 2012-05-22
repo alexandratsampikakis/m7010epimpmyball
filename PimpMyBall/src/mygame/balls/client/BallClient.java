@@ -222,7 +222,6 @@ public class BallClient extends SimpleApplication {
             return;
         }
 
-        
         if (stateManager.hasState(bgas))
             return;
         
@@ -231,9 +230,10 @@ public class BallClient extends SimpleApplication {
         Vector3f camLeft = cam.getLeft().clone();
         camDir.y = 0f;
         camLeft.y = 0f;
+        
+        /*
         playerBall.setDirection(Vector3f.ZERO);
-
-
+       
         if (left) {
             playerBall.setDirection(camLeft);
         }
@@ -246,7 +246,25 @@ public class BallClient extends SimpleApplication {
         if (down) {
             playerBall.setDirection(camDir.negate());
         }
-
+        */
+        
+        Vector3f direction = new Vector3f(0, 0, 0);
+        
+        if (left) {
+            direction.addLocal(camLeft);
+        }
+        if (right) {
+            direction.addLocal(camLeft.negate());
+        }
+        if (up) {
+            direction.addLocal(camDir);
+        }
+        if (down) {
+            direction.addLocal(camDir.negate());
+        }
+        
+        playerBall.setDirection(direction);
+        
         // Move all ghost objects
         for (User user : users.getValues()) {
             Ball ball = user.getBall();
@@ -268,34 +286,19 @@ public class BallClient extends SimpleApplication {
         }
         timeCounter++;
     }
+    
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
 
             if (binding.equals("CharLeft")) {
-                if (isPressed) {
-                    left = true;
-                } else {
-                    left = false;
-                }
+                left = isPressed;
             } else if (binding.equals("CharRight")) {
-                if (isPressed) {
-                    right = true;
-                } else {
-                    right = false;
-                }
+                right = isPressed;
             } else if (binding.equals("CharForward")) {
-                if (isPressed) {
-                    up = true;
-                } else {
-                    up = false;
-                }
+                up = isPressed;
             } else if (binding.equals("CharBackward")) {
-                if (isPressed) {
-                    down = true;
-                } else {
-                    down = false;
-                }
+                down = isPressed;
             }
         }
     };
@@ -372,12 +375,11 @@ public class BallClient extends SimpleApplication {
     
     
     private class GomokuMessageListener implements MessageListener<Client> {
-
         public void messageReceived(Client source, Message message) {
             BallClient.this.enqueue(new GomokuMessageReceiver(message));
         }
     }
-
+    
     private class GomokuMessageReceiver implements Callable {
 
         Message message;
@@ -392,6 +394,7 @@ public class BallClient extends SimpleApplication {
                 
             } else if (message instanceof GomokuStartMessage) {
                 stateManager.attach(bgas);
+                playerUser.getBall().setDirection(Vector3f.ZERO);
                 bgas.startNewGame((GomokuStartMessage) message);
                 
             } else if (message instanceof GomokuUpdateMessage) {
