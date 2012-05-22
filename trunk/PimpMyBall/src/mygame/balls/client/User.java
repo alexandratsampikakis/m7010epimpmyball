@@ -9,11 +9,15 @@ import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Vector3f;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
 import mygame.balls.UserData;
+import mygame.boardgames.GridPoint;
 
 /**
  *
@@ -35,6 +39,7 @@ public class User {
         ghost = new Ball(assetManager, id);
         blingNode = new Node();
         addGeometry(assetManager);
+        setupUserNameText(assetManager);
     }
 
     private void addGeometry(AssetManager assetManager) {
@@ -105,18 +110,20 @@ public class User {
         ghost.setFrozen(bool);
     }
     
-    /*
-     
-     guiNode.attachChild(user.getBlingNode());
+    private void setupUserNameText(AssetManager assetManager) {
+        BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
+        BitmapText userNameText = new BitmapText(guiFont, false);
+        userNameText.setSize(1);
+        userNameText.setText(userData.userName);
+        userNameText.setColor(ColorRGBA.Red);
 
-        //BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
-        BitmapText ch = new BitmapText(guiFont, false);
-        ch.setSize(1);
-        ch.setText(userData.userName);
-        //ch.setLocalTranslation(16, this.getCamera().getHeight() - 16, 0);
-        ch.setName("DisplayText");
-        ch.setColor(ColorRGBA.Red);
-        user.getBlingNode().attachChild(ch);
-     
-     */
+        userNameText.setQueueBucket(Bucket.Transparent);
+        Node textNode = new Node();
+        textNode.addControl(new BillboardControl());
+        textNode.attachChild(userNameText);
+        blingNode.attachChild(textNode);
+        float xOffset = userNameText.getLineWidth() * -0.5f;
+        float yOffset = 3.5f;
+        userNameText.setLocalTranslation(new Vector3f(xOffset, yOffset, 0f));
+    }    
 }
