@@ -6,13 +6,10 @@ import java.util.logging.Logger;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
-import com.jme3.font.BitmapFont;
-import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
@@ -21,8 +18,11 @@ import com.jme3.renderer.Camera;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
+import com.jme3.system.NanoTimer;
+import com.jme3.system.Timer;
 import java.awt.Component;
 import java.util.ArrayList;
+//import java.util.Timer.jme.util.Timer;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
 import mygame.admin.CentralServer;
@@ -46,7 +46,7 @@ import mygame.util.BiMap;
 
 public class BallClient extends SimpleApplication {
 
-    private int timeCounter = 0;
+    private float timeCounter = 0f;
     private Client client;
     private BasicShadowRenderer bsr;
     private Vector3f[] points;
@@ -59,6 +59,7 @@ public class BallClient extends SimpleApplication {
             down = false;
     private mygame.balls.Level level;
     private ChaseCamera chaseCamera;
+    NanoTimer timer;
     //-----------------------------------
     //-----------------------------------
     private UserData playerUserData;
@@ -85,8 +86,6 @@ public class BallClient extends SimpleApplication {
         synchronized (stop) {
             stop.wait();
         }
-
-
     }
 
     private static class CentralServerListener implements MessageListener<Client> {
@@ -131,6 +130,7 @@ public class BallClient extends SimpleApplication {
 
         this.playerUserData = userData;
         this.secret = secret;
+        timer = new NanoTimer();
     }
 
     @Override
@@ -186,6 +186,7 @@ public class BallClient extends SimpleApplication {
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
                 User user = users.getValue(buMessage.id);
                 Ball ghost = user.getGhost();
+                System.out.println("Received position " + buMessage.position);
 
                 // Update the ghost
                 ghost.setPosition(buMessage.position);
@@ -252,15 +253,14 @@ public class BallClient extends SimpleApplication {
             user.Update();
         }
 
-        // TODO
-        // plussa på tpf och räkna ut tiden i sekunder istället!! 
-
         // Send direction to server on a fixed interval
-        if (timeCounter > 20) {
+        if (timeCounter > 0.1f) {
+            System.out.println("At timely time " + timer.getTimeInSeconds());
             sendBallDirectionMessage();
-            timeCounter = 0;
+            timeCounter = 0f;
+
         }
-        timeCounter++;
+        timeCounter += tpf;
     }
     private ActionListener actionListener = new ActionListener() {
 
@@ -282,13 +282,13 @@ public class BallClient extends SimpleApplication {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
         users.put(callerId, user);
-
         level.attachChild(user.getGeometry());
         viewAppState.getPhysicsSpace().add(user.getBall());
         ghostAppState.getPhysicsSpace().add(user.getGhost());
+        // Move the player to the correct position
         user.getBall().setPosition(userData.position);
         user.getGhost().setPosition(userData.position);
-        System.out.println("Setting up user with id " + user.getId() + ".");
+        // Make sure bling visible!
         rootNode.attachChild(user.getBlingNode());
     }
 
@@ -334,7 +334,7 @@ public class BallClient extends SimpleApplication {
         flyCam.setEnabled(false);
         chaseCamera = new ChaseCamera(cam, target, inputManager);
         chaseCamera.setDragToRotate(false);
-        chaseCamera.setMaxVerticalRotation((float) Math.PI/3);
+        chaseCamera.setMaxVerticalRotation((float) Math.PI / 3);
         // chaseCamera.setDefaultDistance(5f);
     }
 
@@ -344,12 +344,15 @@ public class BallClient extends SimpleApplication {
         rootNode.attachChild(level);
         viewAppState.getPhysicsSpace().add(level.getTerrain());
         ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
+
+        //((TestLevel) level).initTrees(assetManager, viewAppState);
+        //((TestLevel) level).initTrees(assetManager, ghostAppState);
     }
 
     public User getPlayer() {
         return playerUser;
     }
-    
+
     public ChaseCamera getChaseCamera() {
         return chaseCamera;
     }
