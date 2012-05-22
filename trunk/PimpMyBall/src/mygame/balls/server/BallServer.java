@@ -150,7 +150,7 @@ public class BallServer extends SimpleApplication {
 
         public Object call() {
 
-            System.out.println("BallServer Received message " + message);
+            // System.out.println("BallServer Received message " + message);
             
             // If it is a ballmessage, set the direction of the ball
             if (message instanceof BallDirectionMessage) {
@@ -161,9 +161,11 @@ public class BallServer extends SimpleApplication {
                 User user = users.getValue(uid);
                 Vector3f dir = bdMessage.direction;
                 
+                /*
                 System.out.println("Id: " + uid);
                 System.out.println("User: " + user);
                 System.out.println("Direction: " + dir);
+                */
                 
                 if (user != null && dir != null) {
                     Ball ball = user.getBall();
