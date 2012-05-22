@@ -14,11 +14,11 @@ public class Ball extends RigidBodyControl {
     private Vector3f direction = new Vector3f();
     static float radius = 2;
     protected static int samples = 25;
-    static protected float friction = 25f, ballMass = 1f, maxSpeed = 20f;
+    static protected float friction = 25f, defaultMass = 1f, maxSpeed = 20f;
     private long id;
 
     public Ball(AssetManager assetManager, long id) {
-        super(new SphereCollisionShape(radius), ballMass);
+        super(new SphereCollisionShape(radius), defaultMass);
         setFriction(friction);
         this.id = id;
     }
@@ -73,5 +73,13 @@ public class Ball extends RigidBodyControl {
         adjustmentVector = adjustmentVector.mult(0.1f);
         Vector3f newPosition = getPosition().add(adjustmentVector);
         setPosition(newPosition);
+    }
+
+    public void setFrozen(boolean bool) {
+        if (bool) {
+            mass = 0;
+        } else {
+            mass = defaultMass;
+        }
     }
 }
