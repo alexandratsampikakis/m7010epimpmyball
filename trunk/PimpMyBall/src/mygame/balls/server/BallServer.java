@@ -6,7 +6,6 @@ import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.PhysicsCollisionEvent;
 import com.jme3.bullet.collision.PhysicsCollisionListener;
 import com.jme3.math.Vector3f;
-import com.jme3.network.AbstractMessage;
 import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filters;
@@ -21,6 +20,7 @@ import java.util.concurrent.Callable;
 import mygame.admin.BallAcceptedMessage;
 import mygame.admin.GameServerStartedMessage;
 import mygame.admin.IncomingBallMessage;
+import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
@@ -32,6 +32,16 @@ import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.RequestUsersMessage;
 import mygame.balls.messages.UserAddedMessage;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.GridPoint;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.gomoku.WinningRow;
+import mygame.boardgames.network.GomokuMessage;
+import mygame.boardgames.network.GomokuServerSlave;
+import mygame.boardgames.network.NewGameMessage;
+import mygame.boardgames.network.broadcast.GomokuEndMessage;
+import mygame.boardgames.network.broadcast.GomokuStartMessage;
+import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
 import mygame.util.BiMap;
 
 public class BallServer extends SimpleApplication {
@@ -40,31 +50,29 @@ public class BallServer extends SimpleApplication {
     private Client centralServerClient;
     public static final String NAME = "Pimp My Ball Server";
     public static final ServerInfo info = new ServerInfo("Ball Server", "192.168.1.3", 5110);
+           // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
     private static int timeCounter = 0;
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private Level level;
     private BulletAppState bulletAppState;
     private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
-    AreaOfInterestManager aoiManager;
-
-    /*public static void main(String[] args) throws Exception {
-    initializeClasses();
-    BallServer app = new BallServer();
-    app.start();
-    app.setPauseOnLostFocus(false);
-    synchronized (NAME) {
-    NAME.wait();
-    }
-    }*/
+    private AreaOfInterestManager aoiManager;
+    
+    private GomokuServerSlave gomokuSlave;
+    
     public BallServer(ServerInfo centralServerInfo) throws Exception {
-        server = Network.createServer(info.NAME, info.VERSION, info.PORT, info.UDP_PORT);
+        
+        server = NetworkHelper.createServer(info);
         server.addMessageListener(new ClientMessageListener());
         server.addConnectionListener(new ClientConnectionListener());
 
-        centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
-                centralServerInfo.ADDRESS, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
+        gomokuSlave = new GomokuServerSlave(this, server);
+        
+        centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
         centralServerClient.addMessageListener(new CentralServerListener());
+
         this.setPauseOnLostFocus(false);
+
     }
 
     @Override
@@ -73,7 +81,7 @@ public class BallServer extends SimpleApplication {
         initAppState();
         initLevel();
         aoiManager = new AreaOfInterestManager(users);
-        flyCam.setMoveSpeed(30f);//KAAAST!!!!!
+        flyCam.setMoveSpeed(30f); // KAAAST!!!!!
         server.start();
         centralServerClient.start();
         // Send its own server info to the central server
@@ -81,16 +89,25 @@ public class BallServer extends SimpleApplication {
     }
 
     private void broadcastBallData() {
-
         for (User user : users.getValues()) {
             Ball ball = user.getBall();
             BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
-
             HashSet filter = aoiManager.getAreaOfInterest(user);
             server.broadcast(Filters.in(filter), ballMessage);
         }
     }
 
+    public void broadcastGomokuUpdate(GomokuGame game, CellColor color, GridPoint p) {
+        server.broadcast(new GomokuUpdateMessage(game, color, p));
+    }
+    public void broadcastGomokuGameStarted(GomokuGame game) {
+        server.broadcast(new GomokuStartMessage(game));
+    }
+    public void broadcastGomokuGameFinished(GomokuGame game, WinningRow row) {
+        int scoreChange = 50; // TODO: Compute score change
+        server.broadcast(new GomokuEndMessage(game, row, scoreChange));
+    }
+    
     /**
      * Send information about a new user to all other users
      * @param newId The ID of the new user
@@ -237,10 +254,20 @@ public class BallServer extends SimpleApplication {
         Object a = event.getObjectA();
         Object b = event.getObjectB();
         if (a instanceof Ball && b instanceof Ball) {
+           
             Ball ballA = (Ball) a;
             Ball ballB = (Ball) b;
             User userA = users.getValue(ballA.getId());
             User userB = users.getValue(ballB.getId());
+            
+            if (ballA.getMass() > 0) {
+                
+                // Stop the balls from moving
+                ballA.setMass(0);
+                ballB.setMass(0);
+            
+                gomokuSlave.startGame(userA, userB);
+            }
         }
     }
 }
@@ -276,6 +303,7 @@ public class BallServer extends SimpleApplication {
         
         level.attachChild(user.getGeometry());
         bulletAppState.getPhysicsSpace().add(user.getBall());
+
         user.getBall().setPosition(userData.position);
     }
 

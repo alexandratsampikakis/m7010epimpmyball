@@ -25,6 +25,7 @@ import mygame.balls.server.BallServer;
 public class CentralServer {
 
     public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.3", 5111);
+            // = new ServerInfo("Central Server", "130.240.110.57", 5111);
             
     private Server server;
     private AuthServer authServer = AuthServer.createServer("fakeAuth");
@@ -57,8 +58,7 @@ public class CentralServer {
         
         SerializerHelper.initializeClasses();
 
-        server = Network.createServer(info.NAME, info.VERSION, info.PORT, info.UDP_PORT);
-        
+        server = NetworkHelper.createServer(info);
         server.addMessageListener(clientListener, 
                 LoginMessage.class);
         server.addMessageListener(gameServerListener, 

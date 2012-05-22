@@ -99,6 +99,7 @@ public class GomokuServer {
     
     public void startGame(HostedConnection c1, HostedConnection c2) {
         
+        /*
         RemotePlayerServer p1 = new RemotePlayerServer(server, c1);
         // AIPlayer p2 = new AIPlayer();
         RemotePlayerServer p2 = new RemotePlayerServer(server, c2);
@@ -109,5 +110,6 @@ public class GomokuServer {
         
         hostedGames.put(newGame.getID(), newGame);
         newGame.start();
+         */
     }
 }

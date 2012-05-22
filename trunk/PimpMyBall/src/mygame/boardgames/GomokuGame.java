@@ -10,6 +10,7 @@ import mygame.boardgames.gomoku.GomokuGrid;
 import mygame.boardgames.gomoku.WinningRow;
 import mygame.boardgames.gomoku.player.GomokuPlayer;
 import mygame.boardgames.network.NewGameMessage;
+import mygame.boardgames.network.broadcast.GomokuStartMessage;
 
 /**
  *
@@ -45,6 +46,10 @@ public class GomokuGame {
         grid = new GomokuGrid(msg.getGridSize());
     }
     
+    public GomokuGame(GomokuStartMessage msg) {
+        gameID = msg.gameID;
+        grid = new GomokuGrid(msg.boardSize);
+    }
     public void setPlayers(GomokuPlayer p1, GomokuPlayer p2) {
         
         startingPlayer = currentPlayer = p1;
@@ -65,7 +70,7 @@ public class GomokuGame {
         startingPlayer.onStartGame(true);
         
         // Switch starting player for next game
-        startingPlayer = opponent;
+        // startingPlayer = opponent;
     }
     
     public void reset() {
@@ -112,6 +117,9 @@ public class GomokuGame {
     }
     public GomokuPlayer getCurrentPlayer() {
         return currentPlayer;
+    }
+    public GomokuPlayer getStartingPlayer() {
+        return startingPlayer;
     }
     public int getID() {
         return gameID;

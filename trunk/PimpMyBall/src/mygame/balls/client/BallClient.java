@@ -26,6 +26,7 @@ import javax.swing.JOptionPane;
 import mygame.admin.CentralServer;
 import mygame.admin.LoginMessage;
 import mygame.admin.LoginSuccessMessage;
+import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
@@ -35,6 +36,10 @@ import mygame.balls.messages.BallDirectionMessage;
 import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.UserAddedMessage;
+import mygame.boardgames.BoardGameAppState;
+import mygame.boardgames.network.broadcast.GomokuEndMessage;
+import mygame.boardgames.network.broadcast.GomokuStartMessage;
+import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
 import mygame.util.BiMap;
 
 public class BallClient extends SimpleApplication {
@@ -58,16 +63,17 @@ public class BallClient extends SimpleApplication {
     static CentralServerListener centralServerListener;
     private int secret;
 
+    private BoardGameAppState bgas;
+    
+            
     public static void main(String[] args) throws IOException, InterruptedException {
         SerializerHelper.initializeClasses();
         String userName = getString(null, "Login Info", "Enter username:", "nicke");
         String passWord = getString(null, "Login Info", "Enter Password:", "kass");
 
         ServerInfo centralServerInfo = CentralServer.info;
-        centralServerClient = Network.connectToServer(centralServerInfo.NAME, centralServerInfo.VERSION,
-                centralServerInfo.ADDRESS, centralServerInfo.PORT, centralServerInfo.UDP_PORT);
-
-
+        centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
+        
         //centralServerClient.addMessageListener(new CentralServerListener());
         centralServerListener = new CentralServerListener();
         centralServerClient.addMessageListener(centralServerListener);
@@ -117,19 +123,30 @@ public class BallClient extends SimpleApplication {
     //-----------------------------------
     public BallClient(ServerInfo serverInfo, UserData userData, int secret) throws Exception {
 
-        client = Network.connectToServer(serverInfo.NAME, serverInfo.VERSION,
-                serverInfo.ADDRESS, serverInfo.PORT, serverInfo.UDP_PORT);
+        client = NetworkHelper.connectToServer(serverInfo);
         client.start();
 
+        bgas = new BoardGameAppState(this, client);
+        
         this.playerUserData = userData;
         this.secret = secret;
     }
 
     @Override
     public void simpleInitApp() {
-        client.addMessageListener(new BallServerListener(), BallUpdateMessage.class,
-                UserAddedMessage.class, ConnectedUsersMessage.class);
+        
+        client.addMessageListener(new BallServerListener(), 
+                BallUpdateMessage.class,
+                UserAddedMessage.class, 
+                ConnectedUsersMessage.class);
+        
+        client.addMessageListener(new GomokuMessageListener(), 
+                GomokuStartMessage.class,
+                GomokuEndMessage.class,
+                GomokuUpdateMessage.class);
+        
         client.send(new HelloMessage(secret, playerUserData.id));
+        
         initAppStates();
         initKeys();
         initShadow();
@@ -200,10 +217,15 @@ public class BallClient extends SimpleApplication {
     //-----------------------------------------------------------
     @Override
     public void simpleUpdate(float tpf) {
+        
         if (playerUser == null) {
             return;
         }
 
+        
+        if (stateManager.hasState(bgas))
+            return;
+        
         Ball playerBall = playerUser.getBall();
         Vector3f camDir = cam.getDirection().clone();
         Vector3f camLeft = cam.getLeft().clone();
@@ -236,8 +258,11 @@ public class BallClient extends SimpleApplication {
             System.out.println("Client's ghost position: " + ghost.getPosition());
         }
 
+        // TODO
+        // plussa på tpf och räkna ut tiden i sekunder istället!! 
+        
         // Send direction to server on a fixed interval
-        if (timeCounter > 5) {
+        if (timeCounter > 20) {
             sendBallDirectionMessage();
             timeCounter = 0;
         }
@@ -246,8 +271,6 @@ public class BallClient extends SimpleApplication {
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
-
-
 
             if (binding.equals("CharLeft")) {
                 if (isPressed) {
@@ -336,5 +359,48 @@ public class BallClient extends SimpleApplication {
         rootNode.attachChild(level);
         viewAppState.getPhysicsSpace().add(level.getTerrain());
         ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
+    }
+    
+    
+    public UserData getPlayerData() {
+        return playerUserData;
+    }
+    
+    
+    
+    
+    
+    
+    private class GomokuMessageListener implements MessageListener<Client> {
+
+        public void messageReceived(Client source, Message message) {
+            BallClient.this.enqueue(new GomokuMessageReceiver(message));
+        }
+    }
+
+    private class GomokuMessageReceiver implements Callable {
+
+        Message message;
+
+        public GomokuMessageReceiver(Message message) {
+            this.message = message;
+        }
+
+        public Object call() {
+            if (message instanceof GomokuEndMessage) {
+                stateManager.detach(bgas);
+                
+            } else if (message instanceof GomokuStartMessage) {
+                stateManager.attach(bgas);
+                bgas.startNewGame((GomokuStartMessage) message);
+                
+            } else if (message instanceof GomokuUpdateMessage) {
+                
+            } else {
+
+                System.err.println("Received odd message:" + message);
+            }
+            return message;
+        }
     }
 }
