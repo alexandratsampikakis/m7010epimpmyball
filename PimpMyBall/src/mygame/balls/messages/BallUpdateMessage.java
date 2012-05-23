@@ -8,6 +8,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 import mygame.balls.Ball;
+import mygame.balls.BallUpdate;
 
 /**
  *
@@ -16,10 +17,7 @@ import mygame.balls.Ball;
 @Serializable
 public class BallUpdateMessage extends AbstractMessage {
 
-    public Vector3f position = Vector3f.ZERO,
-            velocity = Vector3f.ZERO,
-            direction = Vector3f.ZERO;
-    public long id = 0;
+    public BallUpdate ballUpdate;
 
     public BallUpdateMessage() {
         setReliable(false);
@@ -27,25 +25,22 @@ public class BallUpdateMessage extends AbstractMessage {
 
     public BallUpdateMessage(Ball ball) {
         super();
-        this.id = ball.getId();
-        this.position = ball.getPosition();
-        this.velocity = ball.getVelocity();
-        this.direction = ball.getDirection();
+        this.ballUpdate = new BallUpdate(ball);
     }
 
-    /*public Vector3f getPosition() {
-        return position;
+    public Vector3f getPosition() {
+        return ballUpdate.position;
     }
 
     public Vector3f getVelocity() {
-        return velocity;
+        return ballUpdate.velocity;
     }
 
     public Vector3f getDirection() {
-        return acceleration;
+        return ballUpdate.direction;
     }
 
     public long getId() {
-        return id;
-    }*/
+        return ballUpdate.id;
+    }
 }

@@ -18,17 +18,18 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
-import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
-import mygame.admin.messages.GameServerStartedMessage;
-import mygame.admin.messages.IncomingBallMessage;
 import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
+import mygame.admin.messages.BallAcceptedMessage;
+import mygame.admin.messages.GameServerStartedMessage;
+import mygame.admin.messages.IncomingBallMessage;
 import mygame.balls.Ball;
 import mygame.balls.TestLevel;
 import mygame.balls.UserData;
+import mygame.balls.messages.AggregateBallUpdatesMessage;
 import mygame.balls.messages.BallDirectionMessage;
 import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
@@ -51,13 +52,16 @@ public class BallServer extends SimpleApplication {
     public static final String NAME = "Pimp My Ball Server";
     public ServerInfo info;// = new ServerInfo("Ball Server", "192.168.1.5", 5110);
     // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
-    private int timeCounter = 0;
+    private float shortTimeCounter = 0f;
+    private float longTimeCounter = 0f;
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private TestLevel level;
     private BulletAppState bulletAppState;
     private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
     private AreaOfInterestManager aoiManager;
     private GomokuServerSlave gomokuSlave;
+    private final float shortUpdateTime = 0.1f;
+    private final float longInterval = shortUpdateTime * 10f;
 
     public BallServer(ServerInfo centralServerInfo) throws Exception {
 
@@ -108,14 +112,52 @@ public class BallServer extends SimpleApplication {
         centralServerClient.send(new GameServerStartedMessage(info));
     }
 
-    private void broadcastBallData() {
+    /**
+     * For every user, send an updatemessage to everyone who's interested
+     */
+    private void sendBallUpdatesToAOIs() {
+    for (User user : users.getValues()) {
+            Ball ball = user.getBall();
+            HashSet filter = aoiManager.getInterestedConnections(user);
+            server.broadcast(Filters.in(filter), new BallUpdateMessage(ball));
+        }
+    }
+    
+    private void broadcastAggregateBallUpdates() {
+        ArrayList<Ball> allBalls = new ArrayList<Ball>();
+        for (User user : users.getValues()) {
+            allBalls.add(user.getBall());
+        }
+        server.broadcast(new AggregateBallUpdatesMessage(allBalls));
+        System.out.append("Agge!");
+    }
+            
+    //SNÖÖÖR!!
+    /*
+    private void broadcastBallData(boolean toAll) {
         for (User user : users.getValues()) {
             Ball ball = user.getBall();
             BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
-            HashSet filter = aoiManager.getInterestedConnections(user);
-            server.broadcast(Filters.in(filter), ballMessage);
+
+            if (toAll) { // check if the message should be sent to all clients
+                server.broadcast(ballMessage);
+                //.---------
+                System.out.println("TO ALL!!!!!!");
+                //.---------
+
+            } else {// Otherwise, send only to interested clients
+                HashSet filter = aoiManager.getInterestedConnections(user);
+                server.broadcast(Filters.in(filter), ballMessage);
+                //.---------
+                System.out.println("TO SOME: ");
+                for (Object o : filter) {
+                    HostedConnection h = (HostedConnection) o;
+                    System.out.println("    " + h.getAttribute("ID"));
+                }
+                //.---------
+            }
         }
-    }
+    }*/
 
     public void broadcastGomokuUpdate(GomokuGame game, CellColor color, GridPoint p) {
         server.broadcast(new GomokuUpdateMessage(game, color, p));
@@ -144,20 +186,31 @@ public class BallServer extends SimpleApplication {
         server.broadcast(Filters.notEqualTo(newConnection), userAddedMessage);
     }
 
+    /*
+    private void broadcastConnectedUsers() {
+        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(getUserDataList());
+        server.broadcast(cuMessage);
+    }*/
+    
+    
+
     /**
-     * Transmit data on all users to the sender
+     * Transmit data on all users to a single client
      * @param connection 
      */
-    private void broadcastConnectedUsers(HostedConnection connection) {
-        ArrayList<UserData> userDataList = new ArrayList<UserData>();
+    private void sendConnectedUsersToSingleUser(HostedConnection connection) {
+        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(getUserDataList());
+        server.broadcast(Filters.equalTo(connection), cuMessage);
+    }
 
+    private ArrayList<UserData> getUserDataList() {
+        ArrayList<UserData> userDataList = new ArrayList<UserData>();
         for (User user : users.getValues()) {
             UserData userData = user.getUserData();
             userData.position = user.getBall().getPosition();
             userDataList.add(user.getUserData());
         }
-        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(userDataList);
-        server.broadcast(Filters.equalTo(connection), cuMessage);
+        return userDataList;
     }
 
     private class MessageReceived implements Callable {
@@ -203,7 +256,7 @@ public class BallServer extends SimpleApplication {
                 if (userData != null) {
                     long callerId = userData.getId();
                     // Send information about all active player the the new user:
-                    broadcastConnectedUsers(conn);
+                    sendConnectedUsersToSingleUser(conn);
                     // Add the new user
                     setupUser(userData, conn);
                     // Inform the other players of the new user.
@@ -214,7 +267,7 @@ public class BallServer extends SimpleApplication {
             } else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
                 //long id = ruMessage.id;
-                broadcastConnectedUsers(conn);
+                sendConnectedUsersToSingleUser(conn);
 
             } else {
 
@@ -234,7 +287,9 @@ public class BallServer extends SimpleApplication {
         }
 
         public Object call() {
-            System.err.println("Ååå nej, en connection tappades, och Nicke gör inget åt det...");
+            long lostId = (Long) conn.getAttribute("ID");
+            User lostUser = users.getValue(lostId);
+            removeUser(lostUser);
             return conn;
         }
     }
@@ -284,12 +339,11 @@ public class BallServer extends SimpleApplication {
                 User userA = users.getValue(ballA.getId());
                 User userB = users.getValue(ballB.getId());
 
-                if (!ballA.isKinematic() && !ballB.isKinematic()) {
+                if (ballA.isKinematic() && ballB.isKinematic()) {
 
                     // Stop the balls from moving
                     ballA.setKinematic(true);
-                    ballB.setKinematic(true);
-
+                    ballA.setKinematic(true);
                     gomokuSlave.startGame(userA, userB);
                 }
             }
@@ -303,13 +357,19 @@ public class BallServer extends SimpleApplication {
     }
 
     @Override
-    public void update() {
-        super.update();
-        if (timeCounter > 5) {
-            timeCounter = 0;
-            broadcastBallData();
+    public void simpleUpdate(float tpf) {
+
+        if (longTimeCounter > longInterval) {
+            broadcastAggregateBallUpdates();
+            longTimeCounter = 0;
+        } else if (shortTimeCounter > shortUpdateTime) {
+            sendBallUpdatesToAOIs();
+            shortTimeCounter = 0;
         }
-        timeCounter++;
+
+        shortTimeCounter += tpf;
+        longTimeCounter += tpf;
+
         for (User user : users.getValues()) {
             user.update();
             aoiManager.setAOIMidpoint(user);
@@ -330,6 +390,15 @@ public class BallServer extends SimpleApplication {
         bulletAppState.getPhysicsSpace().add(user.getBall());
 
         user.getBall().setPosition(userData.position);
+
+        conn.setAttribute("ID", callerId);
+    }
+
+    private void removeUser(User lostUser) {
+        users.removeValue(lostUser);
+        level.detachChild(lostUser.getGeometry());
+        bulletAppState.getPhysicsSpace().remove(lostUser.getBall());
+        //server.broadcast(UserLeftServerMessage(lostUser.getId()));
     }
 
     private void initAppState() {

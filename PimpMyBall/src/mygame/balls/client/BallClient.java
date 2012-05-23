@@ -41,8 +41,10 @@ import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
+import mygame.balls.BallUpdate;
 import mygame.balls.TestLevel;
 import mygame.balls.UserData;
+import mygame.balls.messages.AggregateBallUpdatesMessage;
 import mygame.balls.messages.BallDirectionMessage;
 import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
@@ -76,7 +78,7 @@ public class BallClient extends SimpleApplication {
     // Timer variables
     private final double smallAngle = Math.toRadians(5d); // 5 degrees in radians
     private final double shortUpdateTime = 0.1d;
-    private final double longUpdateTime = 0.5d;
+    private final double longUpdateTime = 5 * shortUpdateTime;
     private double updateTime = longUpdateTime;
     
     
@@ -165,6 +167,7 @@ public class BallClient extends SimpleApplication {
 
         client.addMessageListener(new BallServerListener(),
                 BallUpdateMessage.class,
+                AggregateBallUpdatesMessage.class,
                 UserAddedMessage.class,
                 ConnectedUsersMessage.class);
 
@@ -181,42 +184,54 @@ public class BallClient extends SimpleApplication {
         initLevel();
         setupChat();
         setupUser(playerUserData);
-        
+
         playerUser = users.getValue(playerUserData.id);
         playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
-        
+
         client.addMessageListener(new MessageListener<Client>() {
+
             public void messageReceived(Client source, Message m) {
-                BallClient.this.enqueue(new ChatCallable((ChatMessage)m));
-                System.out.println("Received chat message. " + ((ChatMessage)m).getText());
+                BallClient.this.enqueue(new ChatCallable((ChatMessage) m));
+                System.out.println("Received chat message. " + ((ChatMessage) m).getText());
             }
         }, ChatMessage.class);
-        
+
         this.setDisplayFps(false);
         this.setDisplayStatView(false);
     }
 
     private class ChatCallable implements Callable {
+
         String text;
         long senderId;
+
         public ChatCallable(ChatMessage m) {
             text = m.getText();
             senderId = m.getSenderId();
         }
+
         public Object call() throws Exception {
             User user = users.getValue(senderId);
             user.showChatMessage(text);
             return null;
         }
     }
-    
+
     private void sendBallDirectionMessage() {
         long playerId = playerUser.getId();
         Ball playerBall = playerUser.getBall();
         Vector3f playerDirection = playerBall.getDirection();
         BallDirectionMessage bdMessage = new BallDirectionMessage(playerId, playerDirection);
         client.send(bdMessage);
+    }
+
+    public void performUpdate(BallUpdate ballUpdate) {
+        User user = users.getValue(ballUpdate.id);
+        Ball ghost = user.getGhost();
+        ghost.setPosition(ballUpdate.position);
+        ghost.setVelocity(ballUpdate.velocity);
+        ghost.setDirection(ballUpdate.direction);
     }
 
     private class BallServerListener implements MessageListener<Client> {
@@ -237,14 +252,18 @@ public class BallClient extends SimpleApplication {
         public Object call() {
             if (message instanceof BallUpdateMessage) {
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
-                User user = users.getValue(buMessage.id);
-                Ball ghost = user.getGhost();
-
-                // Update the ghost
-                ghost.setPosition(buMessage.position);
-                ghost.setVelocity(buMessage.velocity);
-                ghost.setDirection(buMessage.direction);
+                performUpdate(buMessage.ballUpdate);
                 // System.out.print("Received message " + buMessage.position);
+                System.out.println("    Received update: " + buMessage.ballUpdate);
+                System.out.println();
+
+            } else if (message instanceof AggregateBallUpdatesMessage) {
+                AggregateBallUpdatesMessage abuMessage = (AggregateBallUpdatesMessage) message;
+                System.out.println("Received aggregate update: " + abuMessage);
+                System.out.println();
+                for (BallUpdate ballUpdate : abuMessage.ballUpdates) {
+                    performUpdate(ballUpdate);
+                }
 
             } else if (message instanceof UserAddedMessage) {
                 UserAddedMessage uaMessage = (UserAddedMessage) message;
@@ -318,8 +337,7 @@ public class BallClient extends SimpleApplication {
             lastSentDirection = currentDirection;
             timeCounter = 0f;
             updateTime = longUpdateTime;
-            System.out.println("Location: " + playerBall.getPosition());
-            System.out.println("Ghostlocation: " + playerUser.getGhost().getPosition());
+            System.out.println();
         }
         timeCounter += tpf;
     }
@@ -346,14 +364,14 @@ public class BallClient extends SimpleApplication {
             updateTime = newUpdateTime;
         }
     }
-  
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
 
-            if (isEnteringChat)
+            if (isEnteringChat) {
                 return;
-            
+            }
+
             if (binding.equals("CharLeft")) {
                 left = isPressed;
             } else if (binding.equals("CharRight")) {
@@ -372,7 +390,7 @@ public class BallClient extends SimpleApplication {
         users.put(callerId, user);
 
         viewLevel.attachChild(user.getGeometry());
-        
+
         viewAppState.getPhysicsSpace().add(user.getBall());
         ghostAppState.getPhysicsSpace().add(user.getGhost());
         // Move the player to the correct position
@@ -383,9 +401,9 @@ public class BallClient extends SimpleApplication {
     }
 
     private void initKeys() {
-       
+
         inputManager.addRawInputListener(rawInputListener);
-        
+
         inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
@@ -395,7 +413,7 @@ public class BallClient extends SimpleApplication {
         inputManager.addListener(actionListener, "CharForward");
         inputManager.addListener(actionListener, "CharBackward");
     }
-    
+
     private void initAppStates() {
         viewAppState = new BulletAppState();
         viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
@@ -519,7 +537,6 @@ public class BallClient extends SimpleApplication {
                 
                 
             } else if (message instanceof GomokuUpdateMessage) {
-                
                  GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
                 
                 if (gum.gameID == currentGameId) {
@@ -539,38 +556,48 @@ public class BallClient extends SimpleApplication {
             return message;
         }
     }
-    
-    
     private BitmapText chatTextField;
     private String chatString = "";
     private boolean isEnteringChat = false;
-    
     private RawInputListener rawInputListener = new RawInputListener() {
-        public void beginInput() {}
-        public void endInput() {}
-        public void onJoyAxisEvent(JoyAxisEvent evt) {}
-        public void onJoyButtonEvent(JoyButtonEvent evt) {}
-        public void onMouseMotionEvent(MouseMotionEvent evt) {}
-        public void onMouseButtonEvent(MouseButtonEvent evt) {}
+
+        public void beginInput() {
+        }
+
+        public void endInput() {
+        }
+
+        public void onJoyAxisEvent(JoyAxisEvent evt) {
+        }
+
+        public void onJoyButtonEvent(JoyButtonEvent evt) {
+        }
+
+        public void onMouseMotionEvent(MouseMotionEvent evt) {
+        }
+
+        public void onMouseButtonEvent(MouseButtonEvent evt) {
+        }
+
         public void onKeyEvent(KeyInputEvent evt) {
-            
+
             if (!evt.isPressed()) {
                 return;
-            
+
             } else if (!isEnteringChat && evt.getKeyCode() == KeyInput.KEY_RETURN) {
                 isEnteringChat = true;
                 chatTextField.setText(((isEnteringChat) ? "Enter message: _" : ""));
                 evt.setConsumed();
-                
+
             } else if (isEnteringChat) {
-                
+
                 switch (evt.getKeyCode()) {
                     case KeyInput.KEY_ESCAPE:
                         isEnteringChat = false;
                         chatTextField.setText("");
                         evt.setConsumed();
                         return;
-                        
+
                     case KeyInput.KEY_RETURN:
                         if (chatString.equals("")) {
                             isEnteringChat = false;
@@ -582,13 +609,13 @@ public class BallClient extends SimpleApplication {
                             chatString = "";
                         }
                         break;
-                        
+
                     case KeyInput.KEY_BACK:
                         if (chatString.length() > 0) {
                             chatString = chatString.substring(0, chatString.length() - 1);
                         }
                         break;
-                        
+
                     default:
                         char c = evt.getKeyChar();
                         chatString += c;
@@ -597,21 +624,23 @@ public class BallClient extends SimpleApplication {
                 chatTextField.setText("Enter message: " + chatString + "_");
                 evt.setConsumed();
             }
-            
+
         }
-        public void onTouchEvent(TouchEvent evt) {}
+
+        public void onTouchEvent(TouchEvent evt) {
+        }
     };
-    
+
     private void setupChat() {
-        
+
         guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
         chatTextField = new BitmapText(guiFont, false);
-        
+
         chatTextField.setSize(guiFont.getCharSet().getRenderedSize());
         chatTextField.setText("");
         chatTextField.setColor(ColorRGBA.White);
         chatTextField.setLocalTranslation(new Vector3f(16, 40, 0f));
 
         guiNode.attachChild(chatTextField);
-    }    
+    }
 }
