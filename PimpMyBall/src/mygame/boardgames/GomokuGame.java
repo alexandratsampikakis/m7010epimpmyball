@@ -105,6 +105,7 @@ public class GomokuGame {
         } else {
             locked = true;
             notifyListenersOnWin(wr);
+            opponent.onOpponentMove(p);
             player.onGameWon(winningColor);
             opponent.onGameWon(winningColor);
         }

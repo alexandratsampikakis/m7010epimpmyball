@@ -222,7 +222,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         
         Vector3f fromTo = oppPos.add(myPos.negate()).mult(0.5f);
         Vector3f boardPos = myPos.add(fromTo).add(0, 5, 0);
-        Vector3f cameraPos = myPos.add(fromTo.negate())./*mult(1.5f)).*/add(0, 4, 0);
+        Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 4, 0);
                 // add(0, 3, 0); // 
         
         animationTime = ANIMATION_TIME;

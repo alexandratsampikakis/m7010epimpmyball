@@ -48,7 +48,7 @@ public class RemotePlayerServer extends GomokuPlayer {
     }
     
     @Override
-    public void onGameWon(CellColor winningColor) {   
+    public void onGameWon(CellColor winningColor) {
         
     }
     @Override

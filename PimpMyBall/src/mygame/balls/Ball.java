@@ -22,7 +22,6 @@ public class Ball extends RigidBodyControl {
     public Ball(AssetManager assetManager, long id) {
         super(new SphereCollisionShape(radius), defaultMass);
         setFriction(friction);
-        setRestitution(10);
         this.id = id;
     }
 
@@ -59,6 +58,10 @@ public class Ball extends RigidBodyControl {
     }
 
     private void moveInDirection(Vector3f walkDirection) {
+        
+        if (mass <= 0)
+            return;
+        
         Vector3f currentVelocity = getVelocity();
         clearForces();
         if (walkDirection.equals(Vector3f.ZERO)) {
