@@ -8,8 +8,10 @@ import com.jme3.math.Vector3f;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 import mygame.balls.Ball;
 import mygame.balls.BallUpdate;
+import mygame.balls.server.User;
 
 /**
  *
@@ -23,12 +25,11 @@ public class AggregateBallUpdatesMessage extends AbstractMessage {
     public AggregateBallUpdatesMessage() {
     }
 
-    public AggregateBallUpdatesMessage(ArrayList<Ball> balls) {
-        super();
+    public AggregateBallUpdatesMessage(List<User> users) {
         ballUpdates = new ArrayList<BallUpdate>();
         BallUpdate update;
-        for (Ball ball : balls) {
-            update = new BallUpdate(ball);
+        for (User user : users) {
+            update = new BallUpdate(user.getBall());
             ballUpdates.add(update);
         }
     }

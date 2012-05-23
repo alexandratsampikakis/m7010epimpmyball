@@ -64,7 +64,7 @@ public class BallServer extends SimpleApplication {
     private AreaOfInterestManager aoiManager;
     private GomokuServerSlave gomokuSlave;
     private final float shortUpdateTime = 0.1f;
-    private final float longInterval = shortUpdateTime * 10f;
+    private final float longUpdateTime = shortUpdateTime * 50f;
 
     public BallServer(ServerInfo centralServerInfo) throws Exception {
 
@@ -124,15 +124,6 @@ public class BallServer extends SimpleApplication {
             HashSet filter = aoiManager.getInterestedConnections(user);
             server.broadcast(Filters.in(filter), new BallUpdateMessage(ball));
         }
-    }
-    
-    private void broadcastAggregateBallUpdates() {
-        ArrayList<Ball> allBalls = new ArrayList<Ball>();
-        for (User user : users.getValues()) {
-            allBalls.add(user.getBall());
-        }
-        server.broadcast(new AggregateBallUpdatesMessage(allBalls));
-        System.out.append("Agge!");
     }
             
     //SNÖÖÖR!!
@@ -377,9 +368,11 @@ public class BallServer extends SimpleApplication {
     @Override
     public void simpleUpdate(float tpf) {
 
-        if (longTimeCounter > longInterval) {
-            broadcastAggregateBallUpdates();
+        if (longTimeCounter > longUpdateTime) {
+            
+            server.broadcast(new AggregateBallUpdatesMessage(users.getValues()));
             longTimeCounter = 0;
+            
         } else if (shortTimeCounter > shortUpdateTime) {
             sendBallUpdatesToAOIs();
             shortTimeCounter = 0;
