@@ -30,12 +30,13 @@ import com.jme3.shadow.ShadowUtil;
 import java.awt.Component;
 import java.util.ArrayList;
 //import java.util.Timer.jme.util.Timer;
+import java.util.HashMap;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
 import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
-import mygame.admin.LoginMessage;
-import mygame.admin.LoginSuccessMessage;
+import mygame.admin.messages.LoginMessage;
+import mygame.admin.messages.LoginSuccessMessage;
 import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
@@ -47,6 +48,9 @@ import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.UserAddedMessage;
 import mygame.boardgames.BoardGameAppState;
+import mygame.boardgames.GomokuGame;
+import mygame.boardgames.gomoku.CellColor;
+import mygame.boardgames.gomoku.GomokuBoard3D;
 import mygame.boardgames.network.broadcast.GomokuEndMessage;
 import mygame.boardgames.network.broadcast.GomokuStartMessage;
 import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
@@ -74,6 +78,15 @@ public class BallClient extends SimpleApplication {
     private final double shortUpdateTime = 0.1d;
     private final double longUpdateTime = 0.5d;
     private double updateTime = longUpdateTime;
+    
+    
+    private int currentGameId = -1;
+    private HashMap<Integer, GomokuBoard3D> currentGames = 
+            new HashMap<Integer, GomokuBoard3D>();
+    
+    public static boolean SHOW_ALL_GOMOKU_GAMES = true;
+            
+    
     //-----------------------------------
     //--Test Code
     //-----------------------------------
@@ -312,7 +325,7 @@ public class BallClient extends SimpleApplication {
     }
 
     private void renewUpdateTime() {
-
+        
         double newUpdateTime;
         // If current direction is zero:
         if (currentDirection.equals(Vector3f.ZERO)) {
@@ -415,7 +428,8 @@ public class BallClient extends SimpleApplication {
         chaseCamera = new ChaseCamera(cam, target, inputManager);
         chaseCamera.setDragToRotate(false);
         chaseCamera.setMaxVerticalRotation((float) Math.PI / 3);
-        chaseCamera.setDefaultDistance(25f);
+        chaseCamera.setDefaultDistance(30f);
+        chaseCamera.setLookAtOffset(new Vector3f(0, 5, 0));
     }
 
     private void initLevel() {
@@ -442,6 +456,11 @@ public class BallClient extends SimpleApplication {
         }
     }
 
+    private void updateScore(long winnerId, long loserId, int scoreChange) {
+        users.getValue(winnerId).updateScore(scoreChange);
+        users.getValue(loserId).updateScore(-scoreChange);
+    }
+    
     private class GomokuMessageReceiver implements Callable {
 
         Message message;
@@ -451,19 +470,72 @@ public class BallClient extends SimpleApplication {
         }
 
         public Object call() {
+            
             if (message instanceof GomokuEndMessage) {
-                stateManager.detach(bgas);
+                
+                GomokuEndMessage gem = (GomokuEndMessage) message;
+                
+                if (gem.gameID == currentGameId) {
+                    stateManager.detach(bgas);
+                } else {   
+                    GomokuBoard3D dummyBoard = currentGames.get(gem.gameID);
+                    rootNode.detachChild(dummyBoard);
+                }
+                updateScore(gem.winnerID, gem.loserID, gem.scoreChange);
+                
+                User u1 = users.getValue(gem.winnerID);
+                User u2 = users.getValue(gem.loserID);
+                
+                u1.setFrozen(false);
+                u2.setFrozen(false);
+                
 
             } else if (message instanceof GomokuStartMessage) {
-                stateManager.attach(bgas);
-                bgas.startNewGame((GomokuStartMessage) message);
-
+                
+                GomokuStartMessage gsm = (GomokuStartMessage) message;
+                
+                if (gsm.firstPlayerID == playerUser.getId() ||
+                        gsm.secondPlayerID == playerUser.getId()) {
+                    
+                    stateManager.attach(bgas);
+                    GomokuGame newGame = bgas.startNewGame(gsm);
+                    currentGameId = newGame.getID();
+                    
+                } else if (SHOW_ALL_GOMOKU_GAMES) {
+                    
+                    GomokuGame game = new GomokuGame(gsm);
+                    GomokuBoard3D dummyBoard = new GomokuBoard3D(assetManager, game);
+                    dummyBoard.positionBetween(gsm.firstPlayerPos, gsm.secondPlayerPos);
+                    rootNode.attachChild(dummyBoard);
+                    
+                    currentGames.put(gsm.gameID, dummyBoard);
+                    
+                }
+                
+                User u1 = users.getValue(gsm.firstPlayerID);
+                User u2 = users.getValue(gsm.secondPlayerID);
+                u1.setFrozen(gsm.firstPlayerPos);
+                u2.setFrozen(gsm.secondPlayerPos);
+                
+                
             } else if (message instanceof GomokuUpdateMessage) {
                 
+                 GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
+                
+                if (gum.gameID == currentGameId) {
+                    // This is handled elsewhere for our own game
+                } else {
+                    GomokuBoard3D board = currentGames.get(gum.gameID);
+                    if (board != null) {
+                        board.setColor(gum.p, gum.color);
+                    }
+                }
+                 
             } else {
 
                 System.err.println("Received odd message:" + message);
             }
+            
             return message;
         }
     }
@@ -485,8 +557,8 @@ public class BallClient extends SimpleApplication {
             if (!evt.isPressed()) {
                 return;
             
-            } else if (evt.getKeyChar() == '§') {
-                isEnteringChat = !isEnteringChat;
+            } else if (!isEnteringChat && evt.getKeyCode() == KeyInput.KEY_RETURN) {
+                isEnteringChat = true;
                 chatTextField.setText(((isEnteringChat) ? "Enter message: _" : ""));
                 evt.setConsumed();
                 

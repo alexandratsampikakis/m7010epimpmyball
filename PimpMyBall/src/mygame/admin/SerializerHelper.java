@@ -4,6 +4,17 @@
  */
 package mygame.admin;
 
+import mygame.admin.messages.GameServerStartedMessage;
+import mygame.admin.messages.LoginSuccessMessage;
+import mygame.admin.messages.LogoutMessage;
+import mygame.admin.messages.LoginMessage;
+import mygame.admin.messages.LoginFailedMessage;
+import mygame.admin.messages.IncomingBallMessage;
+import mygame.admin.messages.UserLeftServerMessage;
+import mygame.admin.messages.UserEnteredServerMessage;
+import mygame.admin.messages.BackupDataMessage;
+import mygame.admin.messages.BallAcceptedMessage;
+import mygame.admin.messages.BallRejectedMessage;
 import com.jme3.network.serializing.Serializer;
 import mygame.balls.UserData;
 import mygame.balls.messages.BallDirectionMessage;
@@ -67,6 +78,10 @@ public class SerializerHelper {
         Serializer.registerClass(GomokuUpdateMessage.class);
         
         Serializer.registerClass(ChatMessage.class);
+        
+        Serializer.registerClass(LogoutMessage.class);
+        Serializer.registerClass(UserEnteredServerMessage.class);
+        Serializer.registerClass(UserLeftServerMessage.class);
     }
     
 }

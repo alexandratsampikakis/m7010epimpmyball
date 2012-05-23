@@ -10,6 +10,7 @@ import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
@@ -260,5 +261,21 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
     @Override
     public void onReset(GomokuGame game) {
         reset();
+    }
+    
+    
+    
+    public void positionBetween(Vector3f v1, Vector3f v2) {
+
+        Vector3f fromTo = v2.add(v1.negate()).mult(0.5f);
+        Vector3f boardPos = v1.add(fromTo).add(0, 4, 0);
+ 
+        fromTo.y = 0;
+        Quaternion q = new Quaternion();
+        q.lookAt(fromTo.normalize(), Vector3f.UNIT_Y);
+        
+        setLocalRotation(q);
+        setLocalTranslation(boardPos.add(0, -10, 0));
+        setLocalScale(0.25f);
     }
 }

@@ -2,30 +2,28 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package mygame.admin;
+package mygame.admin.messages;
 
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 import mygame.balls.UserData;
 
-
 /**
+ *  Sent from CentralServer to BallServer
+ *
  * @author Jimmy
  */
 @Serializable
-public class LoginSuccessMessage extends AbstractMessage {
-
-    public ServerInfo serverInfo;
-    public UserData userData;
-    public int secret;
+public class IncomingBallMessage extends AbstractMessage {
     
-    public LoginSuccessMessage() {
+    public UserData userData;
+    public int secret;  // public secret, haha..
+
+    public IncomingBallMessage() {
     }
     
-    public LoginSuccessMessage(UserData data, int secret, ServerInfo serverInfo) {
+    public IncomingBallMessage(UserData data, int secret) {
         this.userData = data;
         this.secret = secret;
-        this.serverInfo = serverInfo;
     }
 }
-

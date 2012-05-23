@@ -15,6 +15,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
+import com.jme3.scene.Spatial;
 import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
@@ -152,9 +153,15 @@ public class User {
         }
     }
 
+    void setFrozen(Vector3f pos) {
+        ball.setPosition(pos);
+        ghost.setPosition(pos);
+        setFrozen(true);
+    }
+    
     public void setFrozen(boolean bool) {
-        ball.setFrozen(bool);
-        ghost.setFrozen(bool);
+        ball.setKinematic(bool);
+        ghost.setKinematic(bool);
     }
     
     int removeChatIndex = -1;
@@ -171,19 +178,29 @@ public class User {
     }
     
     private void setupUserNameText(AssetManager assetManager) {
-        
+
         BitmapText userNameText = new BitmapText(guiFont, false);
         userNameText.setSize(1);
         userNameText.setText(userData.userName + " (" + userData.rank + ")");
         userNameText.setColor(ColorRGBA.DarkGray);
-
         userNameText.setQueueBucket(Bucket.Transparent);
-        Node textNode = new Node();
+        userNameText.setName("UserNameText");
+        
+        Node textNode = new Node("UserNameTextNode");
         textNode.addControl(new BillboardControl());
         textNode.attachChild(userNameText);
         blingNode.attachChild(textNode);
         float xOffset = userNameText.getLineWidth() * -0.5f;
         float yOffset = 3.5f;
         userNameText.setLocalTranslation(new Vector3f(xOffset, yOffset, 0f));
-    }    
+    }
+
+    void updateScore(int scoreChange) {
+        
+        Node textNode = (Node) blingNode.getChild("UserNameTextNode");
+        BitmapText userNameText = (BitmapText) textNode.getChild("UserNameText");
+
+        userData.rank += scoreChange;
+        userNameText.setText(userData.userName + " (" + userData.rank + ")");
+    }
 }
