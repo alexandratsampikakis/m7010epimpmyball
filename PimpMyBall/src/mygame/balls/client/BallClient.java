@@ -24,6 +24,7 @@ import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
@@ -40,6 +41,8 @@ import mygame.admin.messages.LoginSuccessMessage;
 import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
+import mygame.admin.messages.LogoutMessage;
+import mygame.admin.messages.UserLeftServerMessage;
 import mygame.balls.Ball;
 import mygame.balls.BallUpdate;
 import mygame.balls.TestLevel;
@@ -80,15 +83,10 @@ public class BallClient extends SimpleApplication {
     private final double shortUpdateTime = 0.1d;
     private final double longUpdateTime = 5 * shortUpdateTime;
     private double updateTime = longUpdateTime;
-    
-    
     private int currentGameId = -1;
-    private HashMap<Integer, GomokuBoard3D> currentGames = 
+    private HashMap<Integer, GomokuBoard3D> currentGames =
             new HashMap<Integer, GomokuBoard3D>();
-    
     public static boolean SHOW_ALL_GOMOKU_GAMES = true;
-            
-    
     //-----------------------------------
     //--Test Code
     //-----------------------------------
@@ -169,7 +167,8 @@ public class BallClient extends SimpleApplication {
                 BallUpdateMessage.class,
                 AggregateBallUpdatesMessage.class,
                 UserAddedMessage.class,
-                ConnectedUsersMessage.class);
+                ConnectedUsersMessage.class,
+                UserLeftServerMessage.class);
 
         client.addMessageListener(new GomokuMessageListener(),
                 GomokuStartMessage.class,
@@ -228,10 +227,12 @@ public class BallClient extends SimpleApplication {
 
     public void performUpdate(BallUpdate ballUpdate) {
         User user = users.getValue(ballUpdate.id);
-        Ball ghost = user.getGhost();
-        ghost.setPosition(ballUpdate.position);
-        ghost.setVelocity(ballUpdate.velocity);
-        ghost.setDirection(ballUpdate.direction);
+        if (user != null) {
+            Ball ghost = user.getGhost();
+            ghost.setPosition(ballUpdate.position);
+            ghost.setVelocity(ballUpdate.velocity);
+            ghost.setDirection(ballUpdate.direction);
+        }
     }
 
     private class BallServerListener implements MessageListener<Client> {
@@ -277,6 +278,15 @@ public class BallClient extends SimpleApplication {
                     setupUser(userData);
                     // System.out.println("Connected user: " + userData.userName);
                 }
+            } else if (message instanceof UserLeftServerMessage) {
+                UserLeftServerMessage ulsMessage = (UserLeftServerMessage) message;
+                long userId = ulsMessage.userId;
+                removeUser(users.getValue(userId));
+
+            } else if (message instanceof LogoutMessage) {
+                LogoutMessage lMessage = (LogoutMessage) message;
+                long userId = lMessage.userId;
+                removeUser(users.getValue(userId));
 
             } else {
 
@@ -289,6 +299,14 @@ public class BallClient extends SimpleApplication {
     //-----------------------------------------------------------
     //    Slut nätverksbekymmer, det nedanför kan skickas bort!!!
     //-----------------------------------------------------------
+    public void removeUser(User lostUser) {
+        users.removeValue(lostUser);
+        viewLevel.detachChild(lostUser.getGeometry());
+        ghostLevel.detachChild(lostUser.getGeometry());
+        viewAppState.getPhysicsSpace().remove(lostUser.getBall());
+        ghostAppState.getPhysicsSpace().remove(lostUser.getBall());
+    }
+
     @Override
     public void simpleUpdate(float tpf) {
 
@@ -343,7 +361,7 @@ public class BallClient extends SimpleApplication {
     }
 
     private void renewUpdateTime() {
-        
+
         double newUpdateTime;
         // If current direction is zero:
         if (currentDirection.equals(Vector3f.ZERO)) {
@@ -388,6 +406,7 @@ public class BallClient extends SimpleApplication {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
         users.put(callerId, user);
+        user.getGeometry().setShadowMode(ShadowMode.CastAndReceive);
 
         viewLevel.attachChild(user.getGeometry());
 
@@ -478,7 +497,7 @@ public class BallClient extends SimpleApplication {
         users.getValue(winnerId).updateScore(scoreChange);
         users.getValue(loserId).updateScore(-scoreChange);
     }
-    
+
     private class GomokuMessageReceiver implements Callable {
 
         Message message;
@@ -488,57 +507,57 @@ public class BallClient extends SimpleApplication {
         }
 
         public Object call() {
-            
+
             if (message instanceof GomokuEndMessage) {
-                
+
                 GomokuEndMessage gem = (GomokuEndMessage) message;
-                
+
                 if (gem.gameID == currentGameId) {
                     stateManager.detach(bgas);
-                } else {   
+                } else {
                     GomokuBoard3D dummyBoard = currentGames.get(gem.gameID);
                     rootNode.detachChild(dummyBoard);
                 }
                 updateScore(gem.winnerID, gem.loserID, gem.scoreChange);
-                
+
                 User u1 = users.getValue(gem.winnerID);
                 User u2 = users.getValue(gem.loserID);
-                
+
                 u1.setFrozen(false);
                 u2.setFrozen(false);
-                
+
 
             } else if (message instanceof GomokuStartMessage) {
-                
+
                 GomokuStartMessage gsm = (GomokuStartMessage) message;
-                
-                if (gsm.firstPlayerID == playerUser.getId() ||
-                        gsm.secondPlayerID == playerUser.getId()) {
-                    
+
+                if (gsm.firstPlayerID == playerUser.getId()
+                        || gsm.secondPlayerID == playerUser.getId()) {
+
                     stateManager.attach(bgas);
                     GomokuGame newGame = bgas.startNewGame(gsm);
                     currentGameId = newGame.getID();
-                    
+
                 } else if (SHOW_ALL_GOMOKU_GAMES) {
-                    
+
                     GomokuGame game = new GomokuGame(gsm);
                     GomokuBoard3D dummyBoard = new GomokuBoard3D(assetManager, game);
                     dummyBoard.positionBetween(gsm.firstPlayerPos, gsm.secondPlayerPos);
                     rootNode.attachChild(dummyBoard);
-                    
+
                     currentGames.put(gsm.gameID, dummyBoard);
-                    
+
                 }
-                
+
                 User u1 = users.getValue(gsm.firstPlayerID);
                 User u2 = users.getValue(gsm.secondPlayerID);
                 u1.setFrozen(gsm.firstPlayerPos);
                 u2.setFrozen(gsm.secondPlayerPos);
-                
-                
+
+
             } else if (message instanceof GomokuUpdateMessage) {
-                 GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
-                
+                GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
+
                 if (gum.gameID == currentGameId) {
                     // This is handled elsewhere for our own game
                 } else {
@@ -547,12 +566,12 @@ public class BallClient extends SimpleApplication {
                         board.setColor(gum.p, gum.color);
                     }
                 }
-                 
+
             } else {
 
                 System.err.println("Received odd message:" + message);
             }
-            
+
             return message;
         }
     }
