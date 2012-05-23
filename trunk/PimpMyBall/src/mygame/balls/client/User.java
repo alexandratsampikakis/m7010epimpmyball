@@ -77,7 +77,7 @@ public class User {
         
             chatLines[i] = chatLine;
         }
-  
+        /*
         Spatial crown = assetManager.loadModel("Models/golden-crown/obj.j3o");
         crown.setLocalScale(0.2f);
         crown.setLocalTranslation(0, 5, 0);
@@ -91,7 +91,7 @@ public class User {
         
         crown.setMaterial(mat);
         
-        blingNode.attachChild(crown);
+        blingNode.attachChild(crown);*/
         blingNode.attachChild(chatNode);        
     }
 
@@ -170,9 +170,9 @@ public class User {
     }
 
     void setFrozen(Vector3f pos) {
+        setFrozen(true);
         ball.setPosition(pos);
         ghost.setPosition(pos);
-        setFrozen(true);
     }
     
     public void setFrozen(boolean bool) {

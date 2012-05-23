@@ -87,6 +87,7 @@ public class BallClient extends SimpleApplication {
     private HashMap<Integer, GomokuBoard3D> currentGames =
             new HashMap<Integer, GomokuBoard3D>();
     public static boolean SHOW_ALL_GOMOKU_GAMES = true;
+    
     //-----------------------------------
     //--Test Code
     //-----------------------------------
@@ -255,13 +256,13 @@ public class BallClient extends SimpleApplication {
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
                 performUpdate(buMessage.ballUpdate);
                 // System.out.print("Received message " + buMessage.position);
-                System.out.println("    Received update: " + buMessage.ballUpdate);
-                System.out.println();
+                // System.out.println("    Received update: " + buMessage.ballUpdate);
+                // System.out.println();
 
             } else if (message instanceof AggregateBallUpdatesMessage) {
                 AggregateBallUpdatesMessage abuMessage = (AggregateBallUpdatesMessage) message;
-                System.out.println("Received aggregate update: " + abuMessage);
-                System.out.println();
+                // System.out.println("Received aggregate update: " + abuMessage);
+                // System.out.println();
                 for (BallUpdate ballUpdate : abuMessage.ballUpdates) {
                     performUpdate(ballUpdate);
                 }
@@ -355,7 +356,7 @@ public class BallClient extends SimpleApplication {
             lastSentDirection = currentDirection;
             timeCounter = 0f;
             updateTime = longUpdateTime;
-            System.out.println();
+            // System.out.println();
         }
         timeCounter += tpf;
     }
@@ -489,6 +490,7 @@ public class BallClient extends SimpleApplication {
     private class GomokuMessageListener implements MessageListener<Client> {
 
         public void messageReceived(Client source, Message message) {
+            System.out.println("Received Gomoku message " + message);
             BallClient.this.enqueue(new GomokuMessageReceiver(message));
         }
     }

@@ -42,6 +42,7 @@ import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.gomoku.CellColor;
 import mygame.boardgames.gomoku.WinningRow;
+import mygame.boardgames.gomoku.player.RemotePlayerServer;
 import mygame.boardgames.network.GomokuServerSlave;
 import mygame.boardgames.network.broadcast.GomokuEndMessage;
 import mygame.boardgames.network.broadcast.GomokuStartMessage;
@@ -162,6 +163,13 @@ public class BallServer extends SimpleApplication {
     }
 
     public void broadcastGomokuGameFinished(GomokuGame game, WinningRow row) {
+        
+        RemotePlayerServer p1 = (RemotePlayerServer) game.getStartingPlayer();
+        RemotePlayerServer p2 = (RemotePlayerServer) p1.getOpponent();
+        
+        p1.getUser().getBall().setMass(Ball.defaultMass);
+        p2.getUser().getBall().setMass(Ball.defaultMass);
+        
         int scoreChange = 50; // TODO: Compute score change
         server.broadcast(new GomokuEndMessage(game, row, scoreChange));
     }

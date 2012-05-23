@@ -268,14 +268,14 @@ public class GomokuBoard3D extends Node implements GomokuGame.Listener {
     public void positionBetween(Vector3f v1, Vector3f v2) {
 
         Vector3f fromTo = v2.add(v1.negate()).mult(0.5f);
-        Vector3f boardPos = v1.add(fromTo).add(0, 4, 0);
+        Vector3f boardPos = v1.add(fromTo).add(0, 5, 0);
  
         fromTo.y = 0;
         Quaternion q = new Quaternion();
         q.lookAt(fromTo.normalize(), Vector3f.UNIT_Y);
         
         setLocalRotation(q);
-        setLocalTranslation(boardPos.add(0, -10, 0));
+        setLocalTranslation(boardPos);
         setLocalScale(0.25f);
     }
 }
