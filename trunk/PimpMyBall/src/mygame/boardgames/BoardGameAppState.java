@@ -186,7 +186,8 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         super.stateDetached(stateManager);
         
         app.chasePlayer();
-
+        app.getRootNode().detachChild(board);
+        
         System.out.println("Detached " + this + ".");
     }
     
@@ -199,7 +200,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     private Vector3f boardStart, boardDest;
     private Vector3f lookAtStart, lookAtDest;
     
-    public void startNewGame(GomokuStartMessage msg) {
+    public GomokuGame startNewGame(GomokuStartMessage msg) {
         
         // Create a new game as specified by the message
         game = new GomokuGame(msg);
@@ -223,7 +224,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         Vector3f boardPos = myPos.add(fromTo).add(0, 4, 0);
         Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 3, 0);
         
-        animationTime = 1f; // ANIMATION_TIME;
+        animationTime = ANIMATION_TIME;
         animateCamera = true;
         
         cameraStart = app.getCamera().getLocation().clone();
@@ -250,6 +251,8 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         
         // Start the game
         game.start();
+        
+        return game;
     }
 
     @Override

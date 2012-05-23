@@ -18,11 +18,11 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
-import mygame.admin.BallAcceptedMessage;
+import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
-import mygame.admin.GameServerStartedMessage;
-import mygame.admin.IncomingBallMessage;
+import mygame.admin.messages.GameServerStartedMessage;
+import mygame.admin.messages.IncomingBallMessage;
 import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
@@ -284,11 +284,11 @@ public class BallServer extends SimpleApplication {
                 User userA = users.getValue(ballA.getId());
                 User userB = users.getValue(ballB.getId());
 
-                if (ballA.getMass() > 0) {
+                if (!ballA.isKinematic() && !ballB.isKinematic()) {
 
                     // Stop the balls from moving
-                    ballA.setMass(0);
-                    ballB.setMass(0);
+                    ballA.setKinematic(true);
+                    ballB.setKinematic(true);
 
                     gomokuSlave.startGame(userA, userB);
                 }

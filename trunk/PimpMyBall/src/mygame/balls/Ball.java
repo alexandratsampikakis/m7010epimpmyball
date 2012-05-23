@@ -82,12 +82,4 @@ public class Ball extends RigidBodyControl {
         Vector3f newPosition = getPosition().add(adjustmentVector);
         setPosition(newPosition);
     }
-
-    public void setFrozen(boolean bool) {
-        if (bool) {
-            mass = 0;
-        } else {
-            mass = defaultMass;
-        }
-    }
 }

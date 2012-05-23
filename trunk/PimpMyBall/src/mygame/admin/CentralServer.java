@@ -4,6 +4,17 @@
  */
 package mygame.admin;
 
+import mygame.admin.messages.GameServerStartedMessage;
+import mygame.admin.messages.LoginSuccessMessage;
+import mygame.admin.messages.LoginMessage;
+import mygame.admin.messages.LoginFailedMessage;
+import mygame.admin.messages.LoginError;
+import mygame.admin.messages.IncomingBallMessage;
+import mygame.admin.messages.UserLeftServerMessage;
+import mygame.admin.messages.UserEnteredServerMessage;
+import mygame.admin.messages.BackupDataMessage;
+import mygame.admin.messages.BallAcceptedMessage;
+import mygame.admin.messages.BallRejectedMessage;
 import com.jme3.network.ConnectionListener;
 import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
@@ -21,7 +32,7 @@ import mygame.balls.server.BallServer;
  */
 public class CentralServer {
 
-    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.5", 5111);
+    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.3", 5111);
             // = new ServerInfo("Central Server", "130.240.110.57", 5111);
             
     private Server server;
@@ -75,6 +86,7 @@ public class CentralServer {
     
     
     private HostedConnection chooseGameServer(UserData userData) {
+        // TODO: load balancing here! :)
         return hostedConnections.get(0);
     }
     
@@ -98,8 +110,10 @@ public class CentralServer {
                         System.out.println("Found user data: " + userData);
                         
                         if (userData == null) {
-                            
                             sendMessage(source, new LoginFailedMessage(LoginError.WRONG_PASSWORD));
+                            
+                        } else if (authServer.isLoggedIn(userData.getId())) {
+                            sendMessage(source, new LoginFailedMessage(LoginError.ALREADY_LOGGED_IN));
                             
                         } else {
                             
@@ -158,15 +172,22 @@ public class CentralServer {
                     } else if (m instanceof BallRejectedMessage) {
                         // BallRejectedMessage brm = (BallRejectedMessage) m;
                         // TODO: FEL!! SKICKA TILL RÄTT SPELARE!!!
+                        // TODO: Plus, prova nästa server om den finns
                         sendMessage(source, new LoginFailedMessage(LoginError.SERVER_FULL));
-                        
+                       
                     } else if (m instanceof GameServerStartedMessage) {
                         GameServerStartedMessage gssm = (GameServerStartedMessage) m;
                         source.setAttribute("ServerInfo", gssm.serverInfo);
                         gameServerConnections.add(source);
                         
                     } else if (m instanceof BackupDataMessage) {
-                        BackupDataMessage bdm = (BackupDataMessage) m;
+                        authServer.saveData(((BackupDataMessage) m).data);
+                    
+                    } else if (m instanceof UserEnteredServerMessage) {
+                        authServer.setUserOnline(((UserEnteredServerMessage) m).userId);
+                        
+                    } else if (m instanceof UserLeftServerMessage) {
+                        authServer.setUserOffline(((UserEnteredServerMessage) m).userId);
                         
                     }
                 }
