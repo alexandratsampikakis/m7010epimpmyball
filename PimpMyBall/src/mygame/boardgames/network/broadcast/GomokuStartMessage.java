@@ -42,6 +42,6 @@ public class GomokuStartMessage extends AbstractMessage {
         boardSize = game.getGrid().getSize();
         
         firstPlayerPos = p1.getUser().getBall().getPosition();
-        secondPlayerPos = p1.getUser().getBall().getPosition();
+        secondPlayerPos = p2.getUser().getBall().getPosition();
     }
 }

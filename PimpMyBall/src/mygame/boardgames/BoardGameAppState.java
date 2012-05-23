@@ -17,6 +17,7 @@ import com.jme3.app.state.AppState;
 import com.jme3.app.state.AppStateManager;
 import com.jme3.asset.AssetManager;
 import com.jme3.collision.CollisionResult;
+import com.jme3.collision.MotionAllowedListener;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.FlyByCamera;
@@ -37,6 +38,8 @@ import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
+import com.jme3.math.Matrix3f;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Ray;
 import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
@@ -168,14 +171,12 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         
         System.out.println("Initializing " + this);
     }
-    
+   
     @Override
     public void stateAttached(AppStateManager stateManager) {
         super.stateAttached(stateManager);
 
         app.getChaseCamera().setEnabled(false);
-        app.getFlyByCamera().setEnabled(true);
-        app.getFlyByCamera().setMoveSpeed(0);
 
         System.out.println("Attached " + this + ".");
     }
@@ -190,16 +191,15 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     }
     
     
+    private static float ANIMATION_TIME = 10f;
+    
+    private float animationTime = 0f;
+    private boolean animateCamera = false;
+    private Vector3f cameraStart, cameraDest;
+    private Vector3f boardStart, boardDest;
+    private Vector3f lookAtStart, lookAtDest;
+    
     public void startNewGame(GomokuStartMessage msg) {
-        
-        /*
-        public Vector3f location;
-        public int gameID;
-        public long firstPlayerID;
-        public long secondPlayerID;
-        public CellColor startingColor;
-        public GridSize boardSize;
-         */
         
         // Create a new game as specified by the message
         game = new GomokuGame(msg);
@@ -214,17 +214,38 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
             game.setPlayers(remotePlayer, localPlayer);
         }
         
+        Vector3f myPos = (msg.firstPlayerID == player.getId()) ?
+                msg.firstPlayerPos : msg.secondPlayerPos;
+        Vector3f oppPos = (msg.firstPlayerID == player.getId()) ?
+                msg.secondPlayerPos : msg.firstPlayerPos;
+        
+        Vector3f fromTo = oppPos.add(myPos.negate()).mult(0.5f);
+        Vector3f boardPos = myPos.add(fromTo).add(0, 4, 0);
+        Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 3, 0);
+        
+        animationTime = 1f; // ANIMATION_TIME;
+        animateCamera = true;
+        
+        cameraStart = app.getCamera().getLocation().clone();
+        cameraDest = cameraPos;
+        
+        boardStart = boardPos.add(0, -10, 0);
+        boardDest = boardPos;
+        
+        lookAtStart = cameraStart.add(app.getCamera().getDirection());
+        lookAtDest = boardDest.clone();
+
         // Create a 3D model of the board
+        fromTo.y = 0;
+        Quaternion q = new Quaternion();
+        q.lookAt(fromTo.normalize(), Vector3f.UNIT_Y);
+        
         board = new GomokuBoard3D(app.getAssetManager(), game);
-        board.setLocalScale(0.5f);
-        
-        // TODO: räkna ut rotationen också!! :)
-        Vector3f location = msg.firstPlayerPos.interpolate(msg.secondPlayerPos, 0.5f);
-        board.setLocalTranslation(location);
-        
-        app.getCamera().setLocation(msg.firstPlayerPos);
-        app.getCamera().lookAt(location, Vector3f.UNIT_Y);
-        
+        board.setLocalRotation(q);
+                // app.getCamera().getRotation());
+        board.setLocalTranslation(boardPos.add(0, -10, 0));
+        board.setLocalScale(0.25f);
+       
         app.getRootNode().attachChild(board);
         
         // Start the game
@@ -232,7 +253,43 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     }
 
     @Override
-    public void update(float tpf) {}
+    public void update(float tpf) {
+        
+        if (animateCamera) {
+            
+            if (animationTime > 0) {
+
+                Camera cam = app.getCamera();
+
+                // float percent = 1f - animationTime / ANIMATION_TIME;
+ 
+                System.out.println(tpf);
+ 
+                // Vector3f temp;
+                
+                // temp = cameraStart.clone();
+                cam.setLocation(cameraStart.interpolate(cameraDest, tpf));
+                // cameraStart = temp;
+                
+                // temp = lookAtStart.clone();
+                cam.lookAt(lookAtStart.interpolate(lookAtDest, tpf), Vector3f.UNIT_Y);
+                // lookAtStart = temp;
+                
+                // temp = boardStart.clone();
+                board.setLocalTranslation(boardStart.interpolate(boardDest, tpf));
+                // boardStart = temp;
+                
+                animationTime -= tpf;
+                
+            } else {
+
+                app.getFlyByCamera().setEnabled(true);
+                app.getFlyByCamera().setMoveSpeed(0);
+                animateCamera = false;
+            }
+        }
+    }
+    
     @Override
     public void render(RenderManager rm) {}
 

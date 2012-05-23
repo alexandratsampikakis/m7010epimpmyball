@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.concurrent.Callable;
 import mygame.admin.BallAcceptedMessage;
 import mygame.admin.CentralServer;
+import mygame.admin.ChatMessage;
 import mygame.admin.GameServerStartedMessage;
 import mygame.admin.IncomingBallMessage;
 import mygame.admin.NetworkHelper;
@@ -71,6 +72,12 @@ public class BallServer extends SimpleApplication {
         server.addMessageListener(new ClientMessageListener());
         server.addConnectionListener(new ClientConnectionListener());
 
+        server.addMessageListener(new MessageListener<HostedConnection>() {
+            public void messageReceived(HostedConnection source, Message m) {
+                server.broadcast(m);
+            }
+        }, ChatMessage.class);
+        
         gomokuSlave = new GomokuServerSlave(this, server);
         
         centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
@@ -245,7 +252,7 @@ public class BallServer extends SimpleApplication {
 
             if (message instanceof IncomingBallMessage) {
                 
-                System.out.println("BallServer Received message " + message);
+                // System.out.println("BallServer Received message " + message);
                 
                 IncomingBallMessage ibMessage = (IncomingBallMessage) message;
                 pendingUserData.put(ibMessage.secret, ibMessage.userData);

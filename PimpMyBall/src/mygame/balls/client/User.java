@@ -7,6 +7,8 @@ package mygame.balls.client;
 import com.jme3.asset.AssetManager;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
+import com.jme3.font.LineWrapMode;
+import com.jme3.font.Rectangle;
 import com.jme3.material.Material;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
@@ -32,6 +34,12 @@ public class User {
     private long id;
     private Node blingNode;
 
+    private static int NUM_CHAT_LINES = 3;
+    private BitmapFont guiFont;
+    private BitmapText[] chatLines = new BitmapText[NUM_CHAT_LINES];
+    private Node chatNode;
+    private int removeChatDelay = 0;
+    
     public User(AssetManager assetManager, UserData userData) {
         this.userData = userData;
         id = userData.getId();
@@ -39,7 +47,35 @@ public class User {
         ghost = new Ball(assetManager, id);
         blingNode = new Node();
         addGeometry(assetManager);
+        
+        guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
+        
         setupUserNameText(assetManager);
+        
+        chatNode = new Node();
+        chatNode.addControl(new BillboardControl());
+        
+        float yOffset = 4.5f;
+        
+        for (int i = 0; i < NUM_CHAT_LINES; i++, yOffset += 1.5f) {
+            BitmapText chatLine = new BitmapText(guiFont, false);
+            chatLine.setSize(1);
+            chatLine.setText("");
+            chatLine.setColor(ColorRGBA.White);
+            chatLine.setQueueBucket(Bucket.Transparent);
+            chatLine.setLocalTranslation(new Vector3f(0, yOffset, 0f));
+            /*
+            chatLine.setBox(new Rectangle(0, 0, 800, 600));
+            chatLine.setLineWrapMode(LineWrapMode.Word);
+            chatLine.setAlignment(BitmapFont.Align.Center);
+            chatLine.setVerticalAlignment(BitmapFont.VAlign.Center);
+             */
+            chatNode.attachChild(chatLine);
+        
+            chatLines[i] = chatLine;
+        }
+  
+        blingNode.attachChild(chatNode);        
     }
 
     private void addGeometry(AssetManager assetManager) {
@@ -103,6 +139,17 @@ public class User {
         ghost.moveForward();
         ball.adjustToBall(ghost);
         blingNode.setLocalTranslation(ball.getPosition());
+        
+        if (removeChatDelay > 0) {
+            removeChatDelay--;
+            if (removeChatDelay == 0) {
+                chatLines[removeChatIndex--].setText("");
+                
+                if (removeChatIndex >= 0) {
+                    removeChatDelay = 200;
+                }
+            }
+        }
     }
 
     public void setFrozen(boolean bool) {
@@ -110,8 +157,22 @@ public class User {
         ghost.setFrozen(bool);
     }
     
+    int removeChatIndex = -1;
+    
+    public void showChatMessage(String text) {
+        
+        for (int i = NUM_CHAT_LINES - 1; i > 0; i--) {
+            chatLines[i].setText(chatLines[i - 1].getText());
+        }
+        
+        chatLines[0].setText(text);
+        
+        removeChatDelay = 200;
+        removeChatIndex = Math.min(removeChatIndex + 1, NUM_CHAT_LINES - 1);
+    }
+    
     private void setupUserNameText(AssetManager assetManager) {
-        BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
+        
         BitmapText userNameText = new BitmapText(guiFont, false);
         userNameText.setSize(1);
         userNameText.setText(userData.userName);
