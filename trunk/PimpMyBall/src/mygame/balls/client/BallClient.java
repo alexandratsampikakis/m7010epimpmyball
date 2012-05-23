@@ -6,16 +6,29 @@ import java.util.logging.Logger;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.font.BitmapFont;
+import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
+import com.jme3.input.RawInputListener;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
+import com.jme3.input.event.JoyAxisEvent;
+import com.jme3.input.event.JoyButtonEvent;
+import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.event.MouseButtonEvent;
+import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.event.TouchEvent;
+import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.renderer.Camera;
+import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
+import com.jme3.scene.Node;
+import com.jme3.scene.control.BillboardControl;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
 import com.jme3.system.NanoTimer;
@@ -25,6 +38,7 @@ import java.util.ArrayList;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
 import mygame.admin.CentralServer;
+import mygame.admin.ChatMessage;
 import mygame.admin.LoginMessage;
 import mygame.admin.LoginSuccessMessage;
 import mygame.admin.NetworkHelper;
@@ -113,7 +127,6 @@ public class BallClient extends SimpleApplication {
                 } catch (Exception ex) {
                     Logger.getLogger(BallClient.class.getName()).log(Level.SEVERE, null, ex);
                 }
-
             }
         }
     }
@@ -162,8 +175,29 @@ public class BallClient extends SimpleApplication {
         playerUser = users.getValue(playerUserData.id);
         playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
+        
+        client.addMessageListener(new MessageListener<Client>() {
+            public void messageReceived(Client source, Message m) {
+                BallClient.this.enqueue(new ChatCallable((ChatMessage)m));
+                System.out.println("Received chat message. " + ((ChatMessage)m).getText());
+            }
+        }, ChatMessage.class);
     }
 
+    private class ChatCallable implements Callable {
+        String text;
+        long senderId;
+        public ChatCallable(ChatMessage m) {
+            text = m.getText();
+            senderId = m.getSenderId();
+        }
+        public Object call() throws Exception {
+            User user = users.getValue(senderId);
+            user.showChatMessage(text);
+            return null;
+        }
+    }
+    
     private void sendBallDirectionMessage() {
         long playerId = playerUser.getId();
         Ball playerBall = playerUser.getBall();
@@ -197,11 +231,11 @@ public class BallClient extends SimpleApplication {
                 ghost.setPosition(buMessage.position);
                 ghost.setVelocity(buMessage.velocity);
                 ghost.setDirection(buMessage.direction);
-                System.out.print("Received message " + buMessage.position);
+                // System.out.print("Received message " + buMessage.position);
 
             } else if (message instanceof UserAddedMessage) {
                 UserAddedMessage uaMessage = (UserAddedMessage) message;
-                System.out.println("Adding user " + uaMessage.userData.userName);
+                // System.out.println("Adding user " + uaMessage.userData.userName);
                 setupUser(uaMessage.userData);
 
             } else if (message instanceof ConnectedUsersMessage) {
@@ -209,7 +243,7 @@ public class BallClient extends SimpleApplication {
                 ArrayList<UserData> userDataList = cuMessage.userDataList;
                 for (UserData userData : userDataList) {
                     setupUser(userData);
-                    System.out.println("Connected user: " + userData.userName);
+                    // System.out.println("Connected user: " + userData.userName);
                 }
 
             } else {
@@ -266,7 +300,7 @@ public class BallClient extends SimpleApplication {
         renewUpdateTime();
         if (timeCounter > updateTime) {
             // Reset to long update time
-            System.out.println("Update time: " + updateTime);
+            // System.out.println("Update time: " + updateTime);
             sendBallDirectionMessage();
             lastSentDirection = currentDirection;
             timeCounter = 0f;
@@ -297,10 +331,54 @@ public class BallClient extends SimpleApplication {
             updateTime = newUpdateTime;
         }
     }
+    
+    
+    String chatString = "";
+    boolean isEnteringChat = false;
+    
+    private RawInputListener rawInputListener = new RawInputListener() {
+        public void beginInput() {}
+        public void endInput() {}
+        public void onJoyAxisEvent(JoyAxisEvent evt) {}
+        public void onJoyButtonEvent(JoyButtonEvent evt) {}
+        public void onMouseMotionEvent(MouseMotionEvent evt) {}
+        public void onMouseButtonEvent(MouseButtonEvent evt) {}
+        public void onKeyEvent(KeyInputEvent evt) {
+            
+            if (!evt.isPressed()) {
+                return;
+            
+            } else if (evt.getKeyChar() == '§') {
+                isEnteringChat = true;
+            
+            } else if (evt.getKeyCode() == KeyInput.KEY_RETURN) {
+                if (isEnteringChat) {  
+                    System.out.println("Sending chat message. " + chatString);
+                    client.send(new ChatMessage(chatString, playerUserData.id));
+                    chatString = "";
+                    isEnteringChat = false;
+                }
+            
+            } else if (isEnteringChat) {
+                // chatString = chatString + "" + evt.getKeyChar();
+                char c = evt.getKeyChar();
+                chatString += c;
+                System.out.println("clicked " + c);
+                System.out.println(chatString);
+               
+                evt.setConsumed();
+            }
+        }
+        public void onTouchEvent(TouchEvent evt) {}
+    };
+    
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
 
+            if (isEnteringChat)
+                return;
+            
             if (binding.equals("CharLeft")) {
                 left = isPressed;
             } else if (binding.equals("CharRight")) {
@@ -328,6 +406,9 @@ public class BallClient extends SimpleApplication {
     }
 
     private void initKeys() {
+       
+        inputManager.addRawInputListener(rawInputListener);
+        
         inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
@@ -337,7 +418,7 @@ public class BallClient extends SimpleApplication {
         inputManager.addListener(actionListener, "CharForward");
         inputManager.addListener(actionListener, "CharBackward");
     }
-
+    
     private void initAppStates() {
         viewAppState = new BulletAppState();
         viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
@@ -370,7 +451,7 @@ public class BallClient extends SimpleApplication {
         chaseCamera = new ChaseCamera(cam, target, inputManager);
         chaseCamera.setDragToRotate(false);
         chaseCamera.setMaxVerticalRotation((float) Math.PI / 3);
-        // chaseCamera.setDefaultDistance(5f);
+        chaseCamera.setDefaultDistance(25f);
     }
 
     private void initLevel() {
@@ -416,6 +497,7 @@ public class BallClient extends SimpleApplication {
                 bgas.startNewGame((GomokuStartMessage) message);
 
             } else if (message instanceof GomokuUpdateMessage) {
+                
             } else {
 
                 System.err.println("Received odd message:" + message);

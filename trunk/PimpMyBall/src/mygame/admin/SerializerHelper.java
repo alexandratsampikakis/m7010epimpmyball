@@ -65,7 +65,8 @@ public class SerializerHelper {
         Serializer.registerClass(GomokuStartMessage.class);
         Serializer.registerClass(GomokuEndMessage.class);
         Serializer.registerClass(GomokuUpdateMessage.class);
-        // Serializer.registerClass(CellColor.class);
+        
+        Serializer.registerClass(ChatMessage.class);
     }
     
 }

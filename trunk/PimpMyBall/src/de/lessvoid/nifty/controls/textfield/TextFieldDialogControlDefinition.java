@@ -9,6 +9,7 @@ import de.lessvoid.nifty.controls.label.builder.LabelBuilder;
 import de.lessvoid.nifty.controls.textfield.builder.TextFieldBuilder;
 import de.lessvoid.nifty.controls.common.CommonBuilders;
 import de.lessvoid.nifty.controls.common.DialogPanelControlDefinition;
+import mygame.Main;
 
 /**
  * The TextFieldDialogControlDefinition registers a new control with Nifty
@@ -17,6 +18,7 @@ import de.lessvoid.nifty.controls.common.DialogPanelControlDefinition;
  * @author void
  */
 public class TextFieldDialogControlDefinition {
+    
   public static final String NAME = "textFieldDialogControl";
   private static CommonBuilders builders = new CommonBuilders();
   
@@ -27,6 +29,7 @@ public class TextFieldDialogControlDefinition {
    * @param nifty
    */
   public static void register(final Nifty nifty) {
+      
     new ControlDefinitionBuilder(NAME) {{
       controller(new TextFieldDialogController());
       control(new ControlBuilder(DialogPanelControlDefinition.NAME) {{

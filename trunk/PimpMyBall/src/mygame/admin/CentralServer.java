@@ -33,7 +33,6 @@ public class CentralServer {
     private ArrayList<HostedConnection> gameServerConnections = new ArrayList<HostedConnection>();
     private HashMap<Integer, PendingUserInfo> pendingUsers = new HashMap<Integer, PendingUserInfo>();
     
-    
     public static void main(String[] args) throws Exception {
         
         CentralServer cs = new CentralServer();

@@ -1,5 +1,9 @@
 package de.lessvoid.nifty.controls.textfield;
 
+import com.jme3.app.Application;
+import com.jme3.app.SimpleApplication;
+import com.jme3.app.state.AbstractAppState;
+import com.jme3.app.state.AppStateManager;
 import java.util.Properties;
 
 import de.lessvoid.nifty.Nifty;
@@ -17,12 +21,16 @@ import de.lessvoid.nifty.input.NiftyInputEvent;
 import de.lessvoid.nifty.screen.Screen;
 import de.lessvoid.nifty.tools.Color;
 import de.lessvoid.xml.xpp3.Attributes;
+import mygame.Main;
 
 /**
  * The ListBoxDialog to show off the new ListBox and a couple of more new Nifty 1.3 things.
  * @author void
  */
 public class TextFieldDialogController implements Controller {
+    
+  public static Main haxx;
+  
   private TextField mainTextField;
   private CheckBox passwordCharCheckBox;
   private TextField passwordCharTextField;
@@ -48,8 +56,7 @@ public class TextFieldDialogController implements Controller {
     this.maxLengthTextField = screen.findNiftyControl("maxLengthTextField", TextField.class);
     this.textChangedLabel = screen.findNiftyControl("textChangedLabel", Label.class);
     this.keyEventLabel = screen.findNiftyControl("keyEventLabel", Label.class);
-    this.logInButton = screen.findNiftyControl("logInButton", Button.class);
-    
+    this.logInButton = screen.findNiftyControl("logInButton", Button.class);    
   }
 
   @Override
@@ -143,9 +150,9 @@ public class TextFieldDialogController implements Controller {
   }
   
   @NiftyEventSubscriber(id="logInButton")
-  public void onLogInButtonClicked(final String id, final ButtonClickedEvent event) {
-    logInButton.disable();
-    // Go to My profile tab.
+  public void onLogInButtonClicked(final String id, final ButtonClickedEvent event) {      
+      haxx.sendLogin(mainTextField.getText(), passwordCharTextField2.getText());
+
   }
 }
 

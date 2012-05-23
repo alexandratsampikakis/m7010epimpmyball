@@ -66,8 +66,11 @@ import de.lessvoid.nifty.controls.listbox.ListBoxDialogControlDefinition;
 import de.lessvoid.nifty.controls.scrollpanel.ScrollPanelDialogControlDefinition;
 import de.lessvoid.nifty.controls.sliderandscrollbar.SliderAndScrollbarDialogControlDefinition;
 import de.lessvoid.nifty.controls.textfield.TextFieldDialogControlDefinition;
+import de.lessvoid.nifty.controls.textfield.TextFieldDialogController;
 import de.lessvoid.nifty.screen.DefaultScreenController;
 import de.lessvoid.nifty.screen.Screen;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Creates a terrain object and a collision node to go with it. Then
@@ -118,16 +121,19 @@ public class Main extends SimpleApplication {
 
     public static void main(String[] args) {
         Main app = new Main();
+        TextFieldDialogController.haxx = app;
         app.start();
     }
 
+    public Main() {
+        
+    }
     /**
      * 
      */
     @Override
     public void simpleInitApp() {
-        //Creating a sky
-
+        
         //Play sound
         AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
         backgroundMusic.setVolume(0);
@@ -141,6 +147,9 @@ public class Main extends SimpleApplication {
         NiftyJmeDisplay niftyDisplay = new NiftyJmeDisplay(
                 assetManager, inputManager, audioRenderer, guiViewPort);
         Nifty nifty = niftyDisplay.getNifty();
+        Logger.getLogger("de.lessvoid.nifty").setLevel(Level.SEVERE); 
+        Logger.getLogger("NiftyInputEventHandlingLog").setLevel(Level.SEVERE);
+
         guiViewPort.addProcessor(niftyDisplay);
         flyCam.setDragToRotate(true); // Need the mouse for clicking.
         
@@ -156,7 +165,6 @@ public class Main extends SimpleApplication {
     registerMenuButtonHintStyle(nifty);
     registerStyles(nifty);
     registerConsolePopup(nifty);
-    registerCreditsPopup(nifty);
 
     // register some helper controls
     MenuButtonControlDefinition.register(nifty);
@@ -174,15 +182,10 @@ public class Main extends SimpleApplication {
     createIntroScreen(nifty);
     createDemoScreen(nifty);
     nifty.gotoScreen("start");
-        
+   
     }
 
     public void startGame() {
-        initKeys();
-        initLighting();
-        initShadow();
-        initPlayer();
-        initCamera();
         setUpTerrain();
     }
     
@@ -222,81 +225,6 @@ public class Main extends SimpleApplication {
         Camera shadowCam = bsr.getShadowCamera(); //Behövs denna?
         ShadowUtil.updateFrustumPoints2(shadowCam, points);*/
         
-    }
-    
-    private ActionListener actionListener = new ActionListener() {
-
-        public void onAction(String binding, boolean isPressed, float tpf) {
-            if (binding.equals("CharLeft")) {
-                if (isPressed) {
-                    left = true;
-                } else {
-                    left = false;
-                }
-            } else if (binding.equals("CharRight")) {
-                if (isPressed) {
-                    right = true;
-                } else {
-                    right = false;
-                }
-            } else if (binding.equals("CharForward")) {
-                if (isPressed) {
-                    up = true;
-                } else {
-                    up = false;
-                }
-            } else if (binding.equals("CharBackward")) {
-                if (isPressed) {
-                    down = true;
-                } else {
-                    down = false;
-                }
-            }
-        }
-    };
-    
-    
-    /**
-     * 
-     */
-    public void initShadow() {
-        bsr = new BasicShadowRenderer(assetManager, 512);
-        bsr.setDirection(new Vector3f(-0.5f,-.5f,-.5f).normalizeLocal());
-        viewPort.addProcessor(bsr);
-    }
-
-    /**
-     * 
-     * @param oldLoc 
-     */
-    private void testCollision(Vector3f oldLoc) {
-        if (terrain.collideWith(selectedCollisionObject.getWorldBound(), new CollisionResults()) > 0) {
-            selectedCollisionObject.setLocalTranslation(oldLoc);
-        }
-    }
-
-    /**
-     * 
-     */
-    private void initLighting() {
-        // Create directional light
-        DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(-0.5f,-.5f,-.5f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
-        rootNode.addLight(directionalLight);
-        //Create ambient light
-        AmbientLight ambientLight = new AmbientLight();
-        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
-        rootNode.addLight(ambientLight);
-    }
-
-    /**
-     * 
-     */
-    private void initCamera() {
-        flyCam.setEnabled(false);
-        ChaseCamera camera = new ChaseCamera(cam, playerNode, inputManager);
-        camera.setDragToRotate(false);
     }
 
     /**
@@ -347,32 +275,6 @@ public class Main extends SimpleApplication {
 
     /**
      * 
-     */
-    private void initPlayer() {
-        float radius = 2;
-        playerNode = new Node("Player");
-        playerGeometry = new Geometry("PlayerGeometry", new Sphere(100, 100, radius));
-        rootNode.attachChild(playerNode);
-        playerNode.attachChild(playerGeometry);
-        Material material = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-        material.setTexture("DiffuseMap", assetManager.loadTexture("Textures/nickeFace.png"));
-        playerGeometry.setMaterial(material);
-        playerNode.setLocalTranslation(new Vector3f(0, 20, 0));
-        SphereCollisionShape sphereShape = new SphereCollisionShape(radius);
-        float stepHeight = 500f;
-        playerControl = new RigidBodyControl(sphereShape, stepHeight);
-        playerNode.addControl(playerControl);
-        //playerControl.setRestitution(0.001f);
-        playerControl.setFriction(12f);
-        playerNode.setShadowMode(ShadowMode.CastAndReceive);
-        bulletAppState.getPhysicsSpace().add(playerControl);
-        
-        smoke = ParticleFactory.getSmoke(assetManager, 2f);
-        playerNode.attachChild(smoke);
-    }
-    
-    /**
-     * 
      * @param xTree
      * @param zTree
      * @param sTree
@@ -391,20 +293,6 @@ public class Main extends SimpleApplication {
         tree.addControl(treeControl);
         terrain.attachChild(tree);
         bulletAppState.getPhysicsSpace().add(treeControl);
-    }
-
-    /**
-     * 
-     */
-    private void initKeys() {
-        inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
-        inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
-        inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
-        inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
-        inputManager.addListener(actionListener, "CharLeft");
-        inputManager.addListener(actionListener, "CharRight");
-        inputManager.addListener(actionListener, "CharForward");
-        inputManager.addListener(actionListener, "CharBackward");
     }
     
     ////////////////////////////////////////////////////////////////////////////////////////////
@@ -862,314 +750,13 @@ public class Main extends SimpleApplication {
     }.registerPopup(nifty);
   }
 
-  private static void registerCreditsPopup(final Nifty nifty) {
-    final CommonBuilders common = new CommonBuilders();
-    new PopupBuilder("creditsPopup") {
-
-      {
-        childLayoutCenter();
-        panel(new PanelBuilder() {
-
-          {
-            width("80%");
-            height("80%");
-            alignCenter();
-            valignCenter();
-            onStartScreenEffect(new EffectBuilder("move") {
-
-              {
-                length(400);
-                inherit();
-                effectParameter("mode", "in");
-                effectParameter("direction", "top");
-              }
-            });
-            onEndScreenEffect(new EffectBuilder("move") {
-
-              {
-                length(400);
-                inherit();
-                neverStopRendering(true);
-                effectParameter("mode", "out");
-                effectParameter("direction", "top");
-              }
-            });
-            onEndScreenEffect(new EffectBuilder("fadeSound") {
-
-              {
-                effectParameter("sound", "credits");
-              }
-            });
-            onActiveEffect(new EffectBuilder("gradient") {
-
-              {
-                effectValue("offset", "0%", "color", "#00bffecc");
-                effectValue("offset", "75%", "color", "#00213cff");
-                effectValue("offset", "100%", "color", "#880000cc");
-              }
-            });
-            onActiveEffect(new EffectBuilder("playSound") {
-
-              {
-                effectParameter("sound", "credits");
-              }
-            });
-            padding("10px");
-            childLayoutVertical();
-            panel(new PanelBuilder() {
-
-              {
-                width("100%");
-                height("*");
-                childLayoutOverlay();
-                childClip(true);
-                panel(new PanelBuilder() {
-
-                  {
-                    width("100%");
-                    childLayoutVertical();
-                    onActiveEffect(new EffectBuilder("autoScroll") {
-
-                      {
-                        length(100000);
-                        effectParameter("start", "0");
-                        effectParameter("end", "-3200");
-                        inherit(true);
-                      }
-                    });
-                    panel(common.vspacer("800px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Nifty 1.3");
-                        style("creditsCaption");
-                      }
-                    });
-                    text(new TextBuilder() {
-
-                      {
-                        text("Standard Controls Demonstration using JavaBuilder pattern");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("30px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("\"Look ma, No XML!\" :)");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("70px"));
-                    panel(new PanelBuilder() {
-
-                      {
-                        width("100%");
-                        height("256px");
-                        childLayoutCenter();
-                        panel(new PanelBuilder() {
-
-                          {
-                            alignCenter();
-                            valignCenter();
-                            childLayoutHorizontal();
-                            width("656px");
-                            panel(new PanelBuilder() {
-
-                              {
-                                width("200px");
-                                height("256px");
-                                childLayoutCenter();
-                                
-                              }
-                            });
-                            panel(new PanelBuilder() {
-
-                              {
-                                width("256px");
-                                height("256px");
-                                alignCenter();
-                                valignCenter();
-                                childLayoutOverlay();
-                                image(new ImageBuilder() {
-
-                                  {
-                                    filename("Interface/pimpMyBall_small.png");
-                                  }
-                                });
-                              }
-                            });
-                            panel(new PanelBuilder() {
-
-                              {
-                                width("200px");
-                                height("256px");
-                                childLayoutCenter();
-                                text(new TextBuilder() {
-
-                                  {
-                                    text("Nifty 1.3 Standard Controls");
-                                    style("base-font");
-                                    alignCenter();
-                                    valignCenter();
-                                  }
-                                });
-                              }
-                            });
-                          }
-                        });
-                      }
-                    });
-                    panel(common.vspacer("70px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("written and performed\nby void");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("100px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Sound Credits");
-                        style("creditsCaption");
-                      }
-                    });
-                    text(new TextBuilder() {
-
-                      {
-                        text("This demonstration uses creative commons licenced sound samples\nand music from the following sources");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("30px"));
-                    image(new ImageBuilder() {
-
-                      {
-                        style("creditsImage");
-                        filename("Interface/freesound.png");
-                      }
-                    });
-                    panel(common.vspacer("25px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Interface/19546__tobi123__Gong_mf2.wav");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("50px"));
-                    image(new ImageBuilder() {
-
-                      {
-                        style("creditsImage");
-                        filename("Interface/cc-mixter-logo.png");
-                        set("action", "openLink(http://ccmixter.org/)");
-                      }
-                    });
-                    panel(common.vspacer("25px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("\"Almost Given Up\" by Loveshadow");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("100px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Additional Credits");
-                        style("creditsCaption");
-                      }
-                    });
-                    text(new TextBuilder() {
-
-                      {
-                        //text("ueber awesome Yin/Yang graphic by Dori\n(http://www.nadori.de)\n\nThanks! :)");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("100px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Special thanks go to");
-                        style("creditsCaption");
-                      }
-                    });
-                    text(new TextBuilder() {
-
-                      {
-                        text(
-                                "The following people helped creating Nifty with valuable feedback,\nfixing bugs or sending patches.\n(in no particular order)\n\n"
-                                + "chaz0x0\n"
-                                + "Tumaini\n"
-                                + "arielsan\n"
-                                + "gaba1978\n"
-                                + "ractoc\n"
-                                + "bonechilla\n"
-                                + "mdeletrain\n"
-                                + "mulov\n"
-                                + "gouessej\n");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("75px"));
-                    text(new TextBuilder() {
-
-                      {
-                        text("Greetings and kudos go out to");
-                        style("creditsCaption");
-                      }
-                    });
-                    text(new TextBuilder() {
-
-                      {
-                        text(
-                                "Ariel Coppes and Ruben Garat of Gemserk\n(http://blog.gemserk.com/)\n\n\n"
-                                + "Erlend, Kirill, Normen, Skye and Ruth of jMonkeyEngine\n(http://www.jmonkeyengine.com/home/)\n\n\n"
-                                + "Brian Matzon, Elias Naur, Caspian Rychlik-Prince for lwjgl\n(http://www.lwjgl.org/\n\n\n"
-                                + "KappaOne, MatthiasM, aho, Dragonene, darkprophet, appel, woogley, Riven, NoobFukaire\nfor valuable input and discussions at #lwjgl IRC on the freenode network\n\n\n"
-                                + "... and Kevin Glass\n(http://slick.cokeandcode.com/)\n\n\n\n\n\n\n\n"
-                                + "As well as everybody that has not yet given up on Nifty =)\n\n"
-                                + "And again sorry to all of you that I've forgotten. You rock too!\n\n\n");
-                        style("creditsCenter");
-                      }
-                    });
-                    panel(common.vspacer("350px"));
-                    image(new ImageBuilder() {
-
-                      {
-                        style("creditsImage");
-                        filename("Interface/nifty-logo.png");
-                      }
-                    });
-                  }
-                });
-              }
-            });
-            panel(new PanelBuilder() {
-
-              {
-                width("100%");
-                paddingTop("10px");
-                childLayoutCenter();
-                control(new ButtonBuilder("creditsBack") {
-
-                  {
-                    label("Back");
-                    alignRight();
-                    valignCenter();
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-    }.registerPopup(nifty);
-  }
+  
     
+  public void crap() {
+      System.out.println("SKRIIIV!!!!!!");
+  }
+  
+  public void sendLogin(String username, String password) {
+      System.out.println("USer:" + username + ", pass: " + password);
+  }
 }
