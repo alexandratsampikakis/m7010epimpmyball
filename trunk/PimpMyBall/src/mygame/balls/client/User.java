@@ -20,7 +20,7 @@ import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
 import mygame.balls.UserData;
-import mygame.boardgames.GridPoint;
+
 
 /**
  *
@@ -36,6 +36,8 @@ public class User {
     private Node blingNode;
 
     private static int NUM_CHAT_LINES = 3;
+    private static int CHAT_DELAY = 200;
+            
     private BitmapFont guiFont;
     private BitmapText[] chatLines = new BitmapText[NUM_CHAT_LINES];
     private Node chatNode;
@@ -76,6 +78,20 @@ public class User {
             chatLines[i] = chatLine;
         }
   
+        Spatial crown = assetManager.loadModel("Models/golden-crown/obj.j3o");
+        crown.setLocalScale(0.2f);
+        crown.setLocalTranslation(0, 5, 0);
+        
+        Material mat = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
+        mat.setColor("Diffuse", ColorRGBA.Yellow);
+        mat.setColor("Ambient", ColorRGBA.Yellow.mult(0.3f));
+        mat.setColor("Specular", ColorRGBA.White.mult(0.6f));
+        mat.setFloat("Shininess", 100f);
+        mat.setBoolean("UseMaterialColors", true);
+        
+        crown.setMaterial(mat);
+        
+        blingNode.attachChild(crown);
         blingNode.attachChild(chatNode);        
     }
 
@@ -147,7 +163,7 @@ public class User {
                 chatLines[removeChatIndex--].setText("");
                 
                 if (removeChatIndex >= 0) {
-                    removeChatDelay = 200;
+                    removeChatDelay = CHAT_DELAY;
                 }
             }
         }
@@ -160,8 +176,13 @@ public class User {
     }
     
     public void setFrozen(boolean bool) {
-        ball.setKinematic(bool);
-        ghost.setKinematic(bool);
+        if (bool) {
+            ball.setMass(0);
+            ghost.setMass(0);
+        } else {
+            ball.setMass(Ball.defaultMass);
+            ghost.setMass(Ball.defaultMass);
+        }
     }
     
     int removeChatIndex = -1;
@@ -173,7 +194,7 @@ public class User {
         }
         chatLines[0].setText(text);
         
-        removeChatDelay = 360;
+        removeChatDelay = CHAT_DELAY;
         removeChatIndex = Math.min(removeChatIndex + 1, NUM_CHAT_LINES - 1);
     }
     

@@ -12,9 +12,11 @@ import com.jme3.math.Vector3f;
 public class Ball extends RigidBodyControl {
 
     private Vector3f direction = new Vector3f();
-    static float radius = 2;
+    
+    public static final float friction = 25f, defaultMass = 1f, maxSpeed = 20f;
+    protected static float radius = 2;
     protected static int samples = 25;
-    static protected float friction = 25f, defaultMass = 1f, maxSpeed = 20f;
+    
     private long id;
 
     public Ball(AssetManager assetManager, long id) {

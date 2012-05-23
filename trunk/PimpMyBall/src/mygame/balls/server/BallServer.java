@@ -347,12 +347,27 @@ public class BallServer extends SimpleApplication {
                 Ball ballB = (Ball) b;
                 User userA = users.getValue(ballA.getId());
                 User userB = users.getValue(ballB.getId());
+                
+                if (ballA.getMass() > 0 && ballB.getMass() > 0) {
+                
+                    // if (!ballA.isKinematic() && !ballB.isKinematic()) {
 
-                if (!ballA.isKinematic() && !ballB.isKinematic()) {
-
+                    /*
+                    Vector3f v1 = ballA.getPosition().clone();
+                    Vector3f v2 = ballB.getPosition().clone();
+                    
+                    Vector3f fromTo = v2.add(v1.negate()); // .mult(0.5f);
+                     */
+                    
                     // Stop the balls from moving
+                    ballA.setMass(0);
+                    ballB.setMass(0);
+                    
+                    /*
                     ballA.setKinematic(true);
                     ballB.setKinematic(true);
+                     */
+                    
                     gomokuSlave.startGame(userA, userB);
                 }
             }

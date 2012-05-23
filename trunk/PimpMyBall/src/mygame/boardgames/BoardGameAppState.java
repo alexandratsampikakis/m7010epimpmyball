@@ -221,8 +221,9 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
                 msg.secondPlayerPos : msg.firstPlayerPos;
         
         Vector3f fromTo = oppPos.add(myPos.negate()).mult(0.5f);
-        Vector3f boardPos = myPos.add(fromTo).add(0, 4, 0);
-        Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 3, 0);
+        Vector3f boardPos = myPos.add(fromTo).add(0, 5, 0);
+        Vector3f cameraPos = myPos.add(fromTo.negate())./*mult(1.5f)).*/add(0, 4, 0);
+                // add(0, 3, 0); // 
         
         animationTime = ANIMATION_TIME;
         animateCamera = true;
@@ -271,15 +272,15 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
                 // Vector3f temp;
                 
                 // temp = cameraStart.clone();
-                cam.setLocation(cameraStart.interpolate(cameraDest, tpf));
+                cam.setLocation(cameraStart.interpolate(cameraDest, percent));
                 // cameraStart = temp;
                 
                 // temp = lookAtStart.clone();
-                cam.lookAt(lookAtStart.interpolate(lookAtDest, tpf), Vector3f.UNIT_Y);
+                cam.lookAt(lookAtStart.interpolate(lookAtDest, percent), Vector3f.UNIT_Y);
                 // lookAtStart = temp;
                 
                 // temp = boardStart.clone();
-                board.setLocalTranslation(boardStart.interpolate(boardDest, tpf));
+                board.setLocalTranslation(boardStart.interpolate(boardDest, percent));
                 // boardStart = temp;
                 
                 animationTime -= tpf;
