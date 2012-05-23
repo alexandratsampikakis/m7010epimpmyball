@@ -55,7 +55,7 @@ public class User {
         chatNode = new Node();
         chatNode.addControl(new BillboardControl());
         
-        float yOffset = 4.5f;
+        float yOffset = 5f;
         
         for (int i = 0; i < NUM_CHAT_LINES; i++, yOffset += 1.5f) {
             BitmapText chatLine = new BitmapText(guiFont, false);
@@ -64,12 +64,12 @@ public class User {
             chatLine.setColor(ColorRGBA.White);
             chatLine.setQueueBucket(Bucket.Transparent);
             chatLine.setLocalTranslation(new Vector3f(0, yOffset, 0f));
-            /*
-            chatLine.setBox(new Rectangle(0, 0, 800, 600));
-            chatLine.setLineWrapMode(LineWrapMode.Word);
+            
+            chatLine.setBox(new Rectangle(-10, 5, 20, 10));
+            chatLine.setLineWrapMode(LineWrapMode.NoWrap);
             chatLine.setAlignment(BitmapFont.Align.Center);
             chatLine.setVerticalAlignment(BitmapFont.VAlign.Center);
-             */
+            
             chatNode.attachChild(chatLine);
         
             chatLines[i] = chatLine;
@@ -164,10 +164,9 @@ public class User {
         for (int i = NUM_CHAT_LINES - 1; i > 0; i--) {
             chatLines[i].setText(chatLines[i - 1].getText());
         }
-        
         chatLines[0].setText(text);
         
-        removeChatDelay = 200;
+        removeChatDelay = 360;
         removeChatIndex = Math.min(removeChatIndex + 1, NUM_CHAT_LINES - 1);
     }
     
@@ -175,8 +174,8 @@ public class User {
         
         BitmapText userNameText = new BitmapText(guiFont, false);
         userNameText.setSize(1);
-        userNameText.setText(userData.userName);
-        userNameText.setColor(ColorRGBA.Red);
+        userNameText.setText(userData.userName + " (" + userData.rank + ")");
+        userNameText.setColor(ColorRGBA.DarkGray);
 
         userNameText.setQueueBucket(Bucket.Transparent);
         Node textNode = new Node();
