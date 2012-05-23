@@ -20,6 +20,7 @@ public class Ball extends RigidBodyControl {
     public Ball(AssetManager assetManager, long id) {
         super(new SphereCollisionShape(radius), defaultMass);
         setFriction(friction);
+        setRestitution(10);
         this.id = id;
     }
 
@@ -58,9 +59,16 @@ public class Ball extends RigidBodyControl {
     private void moveInDirection(Vector3f walkDirection) {
         Vector3f currentVelocity = getVelocity();
         clearForces();
-        applyCentralForce(walkDirection.mult(20f));
-        if (currentVelocity.length() > maxSpeed) {
-            setVelocity(currentVelocity.normalize().mult(maxSpeed));
+        if (walkDirection.equals(Vector3f.ZERO)) {
+            Vector3f frictionForce = getVelocity().clone();
+            frictionForce = frictionForce.negate();
+            frictionForce.y = 0f;
+            applyCentralForce(frictionForce);
+        } else {
+            applyCentralForce(walkDirection.mult(20f));
+            if (currentVelocity.length() > maxSpeed) {
+                setVelocity(currentVelocity.normalize().mult(maxSpeed));
+            }
         }
     }
 
