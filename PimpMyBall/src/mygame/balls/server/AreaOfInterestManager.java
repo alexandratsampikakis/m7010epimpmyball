@@ -9,7 +9,7 @@ import mygame.boardgames.GridPoint;
  *
  * @author nicnys-8
  */
-public class AreaOfInterestManager {
+public final class AreaOfInterestManager {
     // Area of interest stuff
 
     private int xMin, xMax, yMin, yMax;
@@ -26,8 +26,8 @@ public class AreaOfInterestManager {
         yMax = 512;
         width = xMax - xMin;
         height = yMax - yMin;
-        nrOfCols = 20;
-        nrOfRows = 20;
+        nrOfCols = 8;
+        nrOfRows = 8;
         resetAllAreas();
     }
 

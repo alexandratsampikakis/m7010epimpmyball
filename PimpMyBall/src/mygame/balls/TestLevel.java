@@ -6,6 +6,7 @@ package mygame.balls;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.bullet.BulletAppState;
+import com.jme3.bullet.collision.shapes.BoxCollisionShape;
 import com.jme3.bullet.collision.shapes.CollisionShape;
 import com.jme3.bullet.control.RigidBodyControl;
 import com.jme3.bullet.util.CollisionShapeFactory;
@@ -29,27 +30,17 @@ import com.jme3.util.SkyFactory;
  *
  * @author nicnys-8
  */
-public class TestLevel extends Level {
+public final class TestLevel extends Node {
 
     Spatial tree;
     private RigidBodyControl treeControl;
+    static BoxCollisionShape wallShape = new BoxCollisionShape(new Vector3f(512, 512, 512));
+    static TerrainQuad terrain;
 
-    public TestLevel(AssetManager assetManager) {
-        super(assetManager);
+    public TestLevel(AssetManager assetManager, BulletAppState appState) {
         setUpTerrain(assetManager);
-        initSky(assetManager);
-    }
-
-    public void initLighting() {
-        // Create directional light
-        DirectionalLight directionalLight = new DirectionalLight();
-        directionalLight.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
-        addLight(directionalLight);
-        //Create ambient light
-        AmbientLight ambientLight = new AmbientLight();
-        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
-        addLight(ambientLight);
+        appState.getPhysicsSpace().add(terrain);
+        addWalls(appState);
     }
 
     final protected void setUpTerrain(AssetManager assetManager) {
@@ -86,9 +77,18 @@ public class TestLevel extends Level {
         terrain.getControl(RigidBodyControl.class).setAngularDamping(5);
     }
 
-    final protected void initSky(AssetManager assetManager) {
-        attachChild(SkyFactory.createSky(
-                assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
+    public void addWalls(BulletAppState bas) {
+        addWall(new Vector3f(1024, 0, 0), bas);
+        addWall(new Vector3f(0, 0, 1024), bas);
+        addWall(new Vector3f(-1024, 0, 0), bas);
+        addWall(new Vector3f(0, 0, -1024), bas);
+    }
+
+    private void addWall(Vector3f position, BulletAppState bas) {
+        RigidBodyControl wall = new RigidBodyControl(wallShape);
+        wall.setPhysicsLocation(position);
+        wall.setMass(0);
+        bas.getPhysicsSpace().add(wall);
     }
 
     public void initTrees(AssetManager assetManager, BulletAppState bulletAppState) {
@@ -100,11 +100,10 @@ public class TestLevel extends Level {
         createTree(-100, 150, 15, 100, 5, assetManager, bulletAppState);
         createTree(-250, 200, 8, 200, 3, assetManager, bulletAppState);
     }
-    
-    
+
     public void createTree(float xTree, float zTree, float sTree, float rTree,
             int toHigherTree, AssetManager assetManager, BulletAppState bulletAppState) {
-        
+
         tree = assetManager.loadModel("Models/Tree/Tree.mesh.xml");
         Vector2f xz = new Vector2f(xTree, zTree);
         float yTree = terrain.getHeightmapHeight(xz) + toHigherTree;
@@ -117,5 +116,28 @@ public class TestLevel extends Level {
         tree.addControl(treeControl);
         terrain.attachChild(tree);
         bulletAppState.getPhysicsSpace().add(treeControl);
+    }
+    
+        public void initGraphics(AssetManager assetManager) {
+        // Sky
+        initSky(assetManager);
+        initLight();
+    }
+
+    public void initLight() {
+        // Create directional light
+        DirectionalLight directionalLight = new DirectionalLight();
+        directionalLight.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
+        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
+        addLight(directionalLight);
+        //Create ambient light
+        AmbientLight ambientLight = new AmbientLight();
+        ambientLight.setColor((ColorRGBA.White).mult(2.5f));
+        addLight(ambientLight);
+    }
+    
+    final protected void initSky(AssetManager assetManager) {
+        attachChild(SkyFactory.createSky(
+                assetManager, "Textures/Sky/Bright/BrightSky.dds", false));
     }
 }

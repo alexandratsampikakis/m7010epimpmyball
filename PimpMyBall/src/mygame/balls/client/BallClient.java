@@ -6,7 +6,6 @@ import java.util.logging.Logger;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
-import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
@@ -25,13 +24,9 @@ import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.renderer.Camera;
-import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
-import com.jme3.scene.Node;
-import com.jme3.scene.control.BillboardControl;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
-import com.jme3.system.NanoTimer;
 import java.awt.Component;
 import java.util.ArrayList;
 //import java.util.Timer.jme.util.Timer;
@@ -72,7 +67,7 @@ public class BallClient extends SimpleApplication {
             right = false,
             up = false,
             down = false;
-    private mygame.balls.Level level;
+    private TestLevel viewLevel, ghostLevel;
     private ChaseCamera chaseCamera;
     // Timer variables
     private final double smallAngle = Math.toRadians(5d); // 5 degrees in radians
@@ -310,6 +305,8 @@ public class BallClient extends SimpleApplication {
             lastSentDirection = currentDirection;
             timeCounter = 0f;
             updateTime = longUpdateTime;
+            System.out.println("Location: " + playerBall.getPosition());
+            System.out.println("Ghostlocation: " + playerUser.getGhost().getPosition());
         }
         timeCounter += tpf;
     }
@@ -360,7 +357,9 @@ public class BallClient extends SimpleApplication {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
         users.put(callerId, user);
-        level.attachChild(user.getGeometry());
+
+        viewLevel.attachChild(user.getGeometry());
+        
         viewAppState.getPhysicsSpace().add(user.getBall());
         ghostAppState.getPhysicsSpace().add(user.getGhost());
         // Move the player to the correct position
@@ -420,14 +419,12 @@ public class BallClient extends SimpleApplication {
     }
 
     private void initLevel() {
-        level = new TestLevel(assetManager);
-        level.initLighting();
-        rootNode.attachChild(level);
-        viewAppState.getPhysicsSpace().add(level.getTerrain());
-        ghostAppState.getPhysicsSpace().add(level.getTerrain().clone());//?!?!?!?!!
+        viewLevel = new TestLevel(assetManager, viewAppState);
+        ghostLevel = new TestLevel(assetManager, ghostAppState);
 
-        //((TestLevel) level).initTrees(assetManager, viewAppState);
-        //((TestLevel) level).initTrees(assetManager, ghostAppState);
+        viewLevel.initGraphics(assetManager);
+        rootNode.attachChild(viewLevel);
+        rootNode.attachChild(ghostLevel);
     }
 
     public User getPlayer() {

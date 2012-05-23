@@ -9,10 +9,7 @@ import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
-import com.jme3.network.Network;
 import com.jme3.network.Server;
-import com.jme3.network.serializing.Serializer;
-import com.jme3.system.JmeContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import mygame.balls.UserData;
@@ -24,7 +21,7 @@ import mygame.balls.server.BallServer;
  */
 public class CentralServer {
 
-    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.3", 5111);
+    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.5", 5111);
             // = new ServerInfo("Central Server", "130.240.110.57", 5111);
             
     private Server server;

@@ -5,7 +5,6 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.PhysicsCollisionEvent;
 import com.jme3.bullet.collision.PhysicsCollisionListener;
-import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
@@ -28,7 +27,6 @@ import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
 import mygame.balls.Ball;
-import mygame.balls.Level;
 import mygame.balls.TestLevel;
 import mygame.balls.UserData;
 import mygame.balls.messages.BallDirectionMessage;
@@ -52,42 +50,42 @@ public class BallServer extends SimpleApplication {
     private Client centralServerClient;
     public static final String NAME = "Pimp My Ball Server";
     public ServerInfo info;// = new ServerInfo("Ball Server", "192.168.1.5", 5110);
-           // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
+    // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
     private int timeCounter = 0;
     private BiMap<Long, User> users = new BiMap<Long, User>();
-    private Level level;
+    private TestLevel level;
     private BulletAppState bulletAppState;
     private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
     private AreaOfInterestManager aoiManager;
-    
     private GomokuServerSlave gomokuSlave;
-    
+
     public BallServer(ServerInfo centralServerInfo) throws Exception {
-        
+
         String address = getIp();
         System.out.println("ip: " + address);
         info = new ServerInfo("Ball Server", address, 5110);
-        
+
         server = NetworkHelper.createServer(info);
         server.addMessageListener(new ClientMessageListener());
         server.addConnectionListener(new ClientConnectionListener());
 
         server.addMessageListener(new MessageListener<HostedConnection>() {
+
             public void messageReceived(HostedConnection source, Message m) {
                 server.broadcast(m);
             }
         }, ChatMessage.class);
-        
+
         gomokuSlave = new GomokuServerSlave(this, server);
-        
+
         centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
         centralServerClient.addMessageListener(new CentralServerListener());
 
         this.setPauseOnLostFocus(false);
     }
-    
+
     public static void main(String[] args) throws Exception {
-                 
+
         BallServer balls = new BallServer(CentralServer.info);
         balls.start(); // JmeContext.Type.Headless);
 
@@ -122,14 +120,16 @@ public class BallServer extends SimpleApplication {
     public void broadcastGomokuUpdate(GomokuGame game, CellColor color, GridPoint p) {
         server.broadcast(new GomokuUpdateMessage(game, color, p));
     }
+
     public void broadcastGomokuGameStarted(GomokuGame game) {
         server.broadcast(new GomokuStartMessage(game));
     }
+
     public void broadcastGomokuGameFinished(GomokuGame game, WinningRow row) {
         int scoreChange = 50; // TODO: Compute score change
         server.broadcast(new GomokuEndMessage(game, row, scoreChange));
     }
-    
+
     /**
      * Send information about a new user to all other users
      * @param newId The ID of the new user
@@ -173,27 +173,27 @@ public class BallServer extends SimpleApplication {
         public Object call() {
 
             // System.out.println("BallServer Received message " + message);
-            
+
             // If it is a ballmessage, set the direction of the ball
             if (message instanceof BallDirectionMessage) {
-                
+
                 BallDirectionMessage bdMessage = (BallDirectionMessage) message;
-                
+
                 long uid = bdMessage.id;
                 User user = users.getValue(uid);
                 Vector3f dir = bdMessage.direction;
-                
+
                 /*
                 System.out.println("Id: " + uid);
                 System.out.println("User: " + user);
                 System.out.println("Direction: " + dir);
-                */
-                
+                 */
+
                 if (user != null && dir != null) {
                     Ball ball = user.getBall();
                     ball.setDirection(dir);
                 }
-                
+
             } else if (message instanceof HelloMessage) {
 
                 HelloMessage helloMessage = (HelloMessage) message;
@@ -251,9 +251,9 @@ public class BallServer extends SimpleApplication {
         public void messageReceived(Client source, Message message) {
 
             if (message instanceof IncomingBallMessage) {
-                
+
                 // System.out.println("BallServer Received message " + message);
-                
+
                 IncomingBallMessage ibMessage = (IncomingBallMessage) message;
                 pendingUserData.put(ibMessage.secret, ibMessage.userData);
                 centralServerClient.send(new BallAcceptedMessage(ibMessage.secret));
@@ -271,30 +271,30 @@ public class BallServer extends SimpleApplication {
             BallServer.this.enqueue(new ConnectionLost(conn));
         }
     }
-    
+
     public class BallCollisionListener implements PhysicsCollisionListener {
 
-    public void collision(PhysicsCollisionEvent event) {
-        Object a = event.getObjectA();
-        Object b = event.getObjectB();
-        if (a instanceof Ball && b instanceof Ball) {
-           
-            Ball ballA = (Ball) a;
-            Ball ballB = (Ball) b;
-            User userA = users.getValue(ballA.getId());
-            User userB = users.getValue(ballB.getId());
-            
-            if (ballA.getMass() > 0) {
-                
-                // Stop the balls from moving
-                ballA.setMass(0);
-                ballB.setMass(0);
-            
-                gomokuSlave.startGame(userA, userB);
+        public void collision(PhysicsCollisionEvent event) {
+            Object a = event.getObjectA();
+            Object b = event.getObjectB();
+            if (a instanceof Ball && b instanceof Ball) {
+
+                Ball ballA = (Ball) a;
+                Ball ballB = (Ball) b;
+                User userA = users.getValue(ballA.getId());
+                User userB = users.getValue(ballB.getId());
+
+                if (ballA.getMass() > 0) {
+
+                    // Stop the balls from moving
+                    ballA.setMass(0);
+                    ballB.setMass(0);
+
+                    gomokuSlave.startGame(userA, userB);
+                }
             }
         }
     }
-}
 
     @Override
     public void destroy() {
@@ -318,14 +318,14 @@ public class BallServer extends SimpleApplication {
 
     private void setupUser(UserData userData, HostedConnection conn) {
         long callerId = userData.getId();
-        
+
         System.out.println("setupUser with id: " + callerId);
-        
+
         User user = new User(assetManager, userData, conn);
         users.put(callerId, user);
 
         System.out.println("user is " + users.getValue(callerId));
-        
+
         level.attachChild(user.getGeometry());
         bulletAppState.getPhysicsSpace().add(user.getBall());
 
@@ -342,13 +342,12 @@ public class BallServer extends SimpleApplication {
     }
 
     private void initLevel() {
-        level = new TestLevel(assetManager);
+        level = new TestLevel(assetManager, bulletAppState);
         rootNode.attachChild(level);
-        level.initLighting(); //Kasta sen!!!
-        bulletAppState.getPhysicsSpace().add(level.getTerrain());
+        level.initGraphics(assetManager); //Kasta sen!!!
     }
-    
-        private String getIp() throws UnknownHostException {
+
+    private String getIp() throws UnknownHostException {
         String address = "";
 
         InetAddress addr = InetAddress.getLocalHost();
