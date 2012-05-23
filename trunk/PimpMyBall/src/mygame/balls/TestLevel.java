@@ -32,15 +32,16 @@ import com.jme3.util.SkyFactory;
  */
 public final class TestLevel extends Node {
 
-    Spatial tree;
+    private Spatial tree;
     private RigidBodyControl treeControl;
-    static BoxCollisionShape wallShape = new BoxCollisionShape(new Vector3f(512, 512, 512));
-    static TerrainQuad terrain;
+    private BoxCollisionShape wallShape = new BoxCollisionShape(new Vector3f(512, 512, 512));
+    private TerrainQuad terrain;
 
     public TestLevel(AssetManager assetManager, BulletAppState appState) {
         setUpTerrain(assetManager);
         appState.getPhysicsSpace().add(terrain);
         addWalls(appState);
+        //initTrees(assetManager, appState);
     }
 
     final protected void setUpTerrain(AssetManager assetManager) {

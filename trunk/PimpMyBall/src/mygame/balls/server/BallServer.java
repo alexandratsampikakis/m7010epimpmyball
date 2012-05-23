@@ -26,6 +26,9 @@ import mygame.admin.ServerInfo;
 import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.messages.GameServerStartedMessage;
 import mygame.admin.messages.IncomingBallMessage;
+import mygame.admin.messages.LogoutMessage;
+import mygame.admin.messages.UserEnteredServerMessage;
+import mygame.admin.messages.UserLeftServerMessage;
 import mygame.balls.Ball;
 import mygame.balls.TestLevel;
 import mygame.balls.UserData;
@@ -258,13 +261,26 @@ public class BallServer extends SimpleApplication {
                     // Send information about all active player the the new user:
                     sendConnectedUsersToSingleUser(conn);
                     // Add the new user
-                    setupUser(userData, conn);
+                    User user = setupUser(userData, conn);
                     // Inform the other players of the new user.
                     broadcastNewUser(callerId);
+                    // Inform the central server that the new user is added.
+                    centralServerClient.send(new UserEnteredServerMessage(user));
                 }
                 // else felmeddelande???
 
-            } else if (message instanceof RequestUsersMessage) {
+            } else if (message instanceof LogoutMessage) {
+                LogoutMessage lMessage = (LogoutMessage) message;
+                User user = users.getValue(lMessage.userId);
+                UserLeftServerMessage ulMessage = new UserLeftServerMessage(user);
+                // Inform the central server that the user has logged out
+                centralServerClient.send(ulMessage);
+                // Inform all remaining users
+                server.broadcast(ulMessage);
+                removeUser(user);
+            } 
+            
+            else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
                 //long id = ruMessage.id;
                 sendConnectedUsersToSingleUser(conn);
@@ -289,6 +305,8 @@ public class BallServer extends SimpleApplication {
         public Object call() {
             long lostId = (Long) conn.getAttribute("ID");
             User lostUser = users.getValue(lostId);
+            server.broadcast(new UserLeftServerMessage(lostUser));
+            centralServerClient.send(new UserLeftServerMessage(lostUser));
             removeUser(lostUser);
             return conn;
         }
@@ -339,11 +357,11 @@ public class BallServer extends SimpleApplication {
                 User userA = users.getValue(ballA.getId());
                 User userB = users.getValue(ballB.getId());
 
-                if (ballA.isKinematic() && ballB.isKinematic()) {
+                if (!ballA.isKinematic() && !ballB.isKinematic()) {
 
                     // Stop the balls from moving
                     ballA.setKinematic(true);
-                    ballA.setKinematic(true);
+                    ballB.setKinematic(true);
                     gomokuSlave.startGame(userA, userB);
                 }
             }
@@ -376,7 +394,7 @@ public class BallServer extends SimpleApplication {
         }
     }
 
-    private void setupUser(UserData userData, HostedConnection conn) {
+    private User setupUser(UserData userData, HostedConnection conn) {
         long callerId = userData.getId();
 
         System.out.println("setupUser with id: " + callerId);
@@ -392,13 +410,14 @@ public class BallServer extends SimpleApplication {
         user.getBall().setPosition(userData.position);
 
         conn.setAttribute("ID", callerId);
+        
+        return user;
     }
 
     private void removeUser(User lostUser) {
         users.removeValue(lostUser);
         level.detachChild(lostUser.getGeometry());
         bulletAppState.getPhysicsSpace().remove(lostUser.getBall());
-        //server.broadcast(UserLeftServerMessage(lostUser.getId()));
     }
 
     private void initAppState() {
