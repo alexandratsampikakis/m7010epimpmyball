@@ -551,6 +551,7 @@ public class BallClient extends SimpleApplication {
 
                 User u1 = users.getValue(gsm.firstPlayerID);
                 User u2 = users.getValue(gsm.secondPlayerID);
+                
                 u1.setFrozen(gsm.firstPlayerPos);
                 u2.setFrozen(gsm.secondPlayerPos);
 
