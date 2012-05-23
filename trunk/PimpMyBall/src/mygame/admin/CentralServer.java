@@ -32,7 +32,7 @@ import mygame.balls.server.BallServer;
  */
 public class CentralServer {
 
-    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.3", 5111);
+    public static final ServerInfo info = new ServerInfo("Central Server", "192.168.1.5", 5111);
             // = new ServerInfo("Central Server", "130.240.110.57", 5111);
             
     private Server server;

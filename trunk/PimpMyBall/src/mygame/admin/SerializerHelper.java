@@ -16,7 +16,9 @@ import mygame.admin.messages.BackupDataMessage;
 import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.messages.BallRejectedMessage;
 import com.jme3.network.serializing.Serializer;
+import mygame.balls.BallUpdate;
 import mygame.balls.UserData;
+import mygame.balls.messages.AggregateBallUpdatesMessage;
 import mygame.balls.messages.BallDirectionMessage;
 import mygame.balls.messages.BallUpdateMessage;
 import mygame.balls.messages.ConnectedUsersMessage;
@@ -62,6 +64,7 @@ public class SerializerHelper {
         // Ball messages
         Serializer.registerClass(HelloMessage.class);
         Serializer.registerClass(BallUpdateMessage.class);
+        Serializer.registerClass(AggregateBallUpdatesMessage.class);
         Serializer.registerClass(BallDirectionMessage.class);
         Serializer.registerClass(ConnectedUsersMessage.class);
         Serializer.registerClass(RequestUsersMessage.class);
@@ -78,6 +81,9 @@ public class SerializerHelper {
         Serializer.registerClass(GomokuUpdateMessage.class);
         
         Serializer.registerClass(ChatMessage.class);
+        
+        // Other stuff
+        Serializer.registerClass(BallUpdate.class);
         
         Serializer.registerClass(LogoutMessage.class);
         Serializer.registerClass(UserEnteredServerMessage.class);
