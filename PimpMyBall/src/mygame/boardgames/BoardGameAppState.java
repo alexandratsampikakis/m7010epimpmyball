@@ -191,7 +191,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
     }
     
     
-    private static float ANIMATION_TIME = 10f;
+    private static float ANIMATION_TIME = 5f;
     
     private float animationTime = 0f;
     private boolean animateCamera = false;
@@ -261,7 +261,7 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
 
                 Camera cam = app.getCamera();
 
-                // float percent = 1f - animationTime / ANIMATION_TIME;
+                float percent = 1f - animationTime / ANIMATION_TIME;
  
                 System.out.println(tpf);
  
@@ -345,7 +345,6 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
             
             flyCam.setMoveSpeed(0f);
             
-            guiNode.detachAllChildren();
             BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
             BitmapText ch = new BitmapText(guiFont, false);
             int size = guiFont.getCharSet().getRenderedSize();

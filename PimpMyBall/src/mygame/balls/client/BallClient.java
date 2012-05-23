@@ -171,7 +171,9 @@ public class BallClient extends SimpleApplication {
         initKeys();
         initShadow();
         initLevel();
+        setupChat();
         setupUser(playerUserData);
+        
         playerUser = users.getValue(playerUserData.id);
         playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
@@ -182,6 +184,9 @@ public class BallClient extends SimpleApplication {
                 System.out.println("Received chat message. " + ((ChatMessage)m).getText());
             }
         }, ChatMessage.class);
+        
+        this.setDisplayFps(false);
+        this.setDisplayStatView(false);
     }
 
     private class ChatCallable implements Callable {
@@ -331,47 +336,7 @@ public class BallClient extends SimpleApplication {
             updateTime = newUpdateTime;
         }
     }
-    
-    
-    String chatString = "";
-    boolean isEnteringChat = false;
-    
-    private RawInputListener rawInputListener = new RawInputListener() {
-        public void beginInput() {}
-        public void endInput() {}
-        public void onJoyAxisEvent(JoyAxisEvent evt) {}
-        public void onJoyButtonEvent(JoyButtonEvent evt) {}
-        public void onMouseMotionEvent(MouseMotionEvent evt) {}
-        public void onMouseButtonEvent(MouseButtonEvent evt) {}
-        public void onKeyEvent(KeyInputEvent evt) {
-            
-            if (!evt.isPressed()) {
-                return;
-            
-            } else if (evt.getKeyChar() == '§') {
-                isEnteringChat = true;
-            
-            } else if (evt.getKeyCode() == KeyInput.KEY_RETURN) {
-                if (isEnteringChat) {  
-                    System.out.println("Sending chat message. " + chatString);
-                    client.send(new ChatMessage(chatString, playerUserData.id));
-                    chatString = "";
-                    isEnteringChat = false;
-                }
-            
-            } else if (isEnteringChat) {
-                // chatString = chatString + "" + evt.getKeyChar();
-                char c = evt.getKeyChar();
-                chatString += c;
-                System.out.println("clicked " + c);
-                System.out.println(chatString);
-               
-                evt.setConsumed();
-            }
-        }
-        public void onTouchEvent(TouchEvent evt) {}
-    };
-    
+  
     private ActionListener actionListener = new ActionListener() {
 
         public void onAction(String binding, boolean isPressed, float tpf) {
@@ -505,4 +470,79 @@ public class BallClient extends SimpleApplication {
             return message;
         }
     }
+    
+    
+    private BitmapText chatTextField;
+    private String chatString = "";
+    private boolean isEnteringChat = false;
+    
+    private RawInputListener rawInputListener = new RawInputListener() {
+        public void beginInput() {}
+        public void endInput() {}
+        public void onJoyAxisEvent(JoyAxisEvent evt) {}
+        public void onJoyButtonEvent(JoyButtonEvent evt) {}
+        public void onMouseMotionEvent(MouseMotionEvent evt) {}
+        public void onMouseButtonEvent(MouseButtonEvent evt) {}
+        public void onKeyEvent(KeyInputEvent evt) {
+            
+            if (!evt.isPressed()) {
+                return;
+            
+            } else if (evt.getKeyChar() == '§') {
+                isEnteringChat = !isEnteringChat;
+                chatTextField.setText(((isEnteringChat) ? "Enter message: _" : ""));
+                evt.setConsumed();
+                
+            } else if (isEnteringChat) {
+                
+                switch (evt.getKeyCode()) {
+                    case KeyInput.KEY_ESCAPE:
+                        isEnteringChat = false;
+                        chatTextField.setText("");
+                        evt.setConsumed();
+                        return;
+                        
+                    case KeyInput.KEY_RETURN:
+                        if (chatString.equals("")) {
+                            isEnteringChat = false;
+                            chatTextField.setText("");
+                            evt.setConsumed();
+                            return;
+                        } else {
+                            client.send(new ChatMessage(chatString, playerUserData.id));
+                            chatString = "";
+                        }
+                        break;
+                        
+                    case KeyInput.KEY_BACK:
+                        if (chatString.length() > 0) {
+                            chatString = chatString.substring(0, chatString.length() - 1);
+                        }
+                        break;
+                        
+                    default:
+                        char c = evt.getKeyChar();
+                        chatString += c;
+                        break;
+                }
+                chatTextField.setText("Enter message: " + chatString + "_");
+                evt.setConsumed();
+            }
+            
+        }
+        public void onTouchEvent(TouchEvent evt) {}
+    };
+    
+    private void setupChat() {
+        
+        guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
+        chatTextField = new BitmapText(guiFont, false);
+        
+        chatTextField.setSize(guiFont.getCharSet().getRenderedSize());
+        chatTextField.setText("");
+        chatTextField.setColor(ColorRGBA.White);
+        chatTextField.setLocalTranslation(new Vector3f(16, 40, 0f));
+
+        guiNode.attachChild(chatTextField);
+    }    
 }
