@@ -5,6 +5,7 @@ import com.jme3.app.SimpleApplication;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.bullet.collision.PhysicsCollisionEvent;
 import com.jme3.bullet.collision.PhysicsCollisionListener;
+import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.ConnectionListener;
@@ -12,12 +13,14 @@ import com.jme3.network.Filters;
 import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
-import com.jme3.network.Network;
 import com.jme3.network.Server;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
 import mygame.admin.BallAcceptedMessage;
+import mygame.admin.CentralServer;
 import mygame.admin.GameServerStartedMessage;
 import mygame.admin.IncomingBallMessage;
 import mygame.admin.NetworkHelper;
@@ -36,9 +39,7 @@ import mygame.boardgames.GomokuGame;
 import mygame.boardgames.GridPoint;
 import mygame.boardgames.gomoku.CellColor;
 import mygame.boardgames.gomoku.WinningRow;
-import mygame.boardgames.network.GomokuMessage;
 import mygame.boardgames.network.GomokuServerSlave;
-import mygame.boardgames.network.NewGameMessage;
 import mygame.boardgames.network.broadcast.GomokuEndMessage;
 import mygame.boardgames.network.broadcast.GomokuStartMessage;
 import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
@@ -49,9 +50,9 @@ public class BallServer extends SimpleApplication {
     private Server server;
     private Client centralServerClient;
     public static final String NAME = "Pimp My Ball Server";
-    public static final ServerInfo info = new ServerInfo("Ball Server", "192.168.1.3", 5110);
+    public ServerInfo info;// = new ServerInfo("Ball Server", "192.168.1.5", 5110);
            // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
-    private static int timeCounter = 0;
+    private int timeCounter = 0;
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private Level level;
     private BulletAppState bulletAppState;
@@ -61,6 +62,10 @@ public class BallServer extends SimpleApplication {
     private GomokuServerSlave gomokuSlave;
     
     public BallServer(ServerInfo centralServerInfo) throws Exception {
+        
+        String address = getIp();
+        System.out.println("ip: " + address);
+        info = new ServerInfo("Ball Server", address, 5110);
         
         server = NetworkHelper.createServer(info);
         server.addMessageListener(new ClientMessageListener());
@@ -72,7 +77,17 @@ public class BallServer extends SimpleApplication {
         centralServerClient.addMessageListener(new CentralServerListener());
 
         this.setPauseOnLostFocus(false);
+    }
+    
+    public static void main(String[] args) throws Exception {
+                 
+        BallServer balls = new BallServer(CentralServer.info);
+        balls.start(); // JmeContext.Type.Headless);
 
+        // Run FOREVER!
+        synchronized (CentralServer.info) {
+            CentralServer.info.wait();
+        }
     }
 
     @Override
@@ -80,7 +95,7 @@ public class BallServer extends SimpleApplication {
         SerializerHelper.initializeClasses();
         initAppState();
         initLevel();
-        aoiManager = new AreaOfInterestManager(users);
+        aoiManager = new AreaOfInterestManager();
         flyCam.setMoveSpeed(30f); // KAAAST!!!!!
         server.start();
         centralServerClient.start();
@@ -92,7 +107,7 @@ public class BallServer extends SimpleApplication {
         for (User user : users.getValues()) {
             Ball ball = user.getBall();
             BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
-            HashSet filter = aoiManager.getAreaOfInterest(user);
+            HashSet filter = aoiManager.getInterestedConnections(user);
             server.broadcast(Filters.in(filter), ballMessage);
         }
     }
@@ -289,7 +304,8 @@ public class BallServer extends SimpleApplication {
         }
         timeCounter++;
         for (User user : users.getValues()) {
-            user.getBall().moveForward();
+            user.update();
+            aoiManager.setAOIMidpoint(user);
         }
     }
 
@@ -323,5 +339,19 @@ public class BallServer extends SimpleApplication {
         rootNode.attachChild(level);
         level.initLighting(); //Kasta sen!!!
         bulletAppState.getPhysicsSpace().add(level.getTerrain());
+    }
+    
+        private String getIp() throws UnknownHostException {
+        String address = "";
+
+        InetAddress addr = InetAddress.getLocalHost();
+        // Get IP Address
+        byte[] ipAddr = addr.getAddress();
+        String i0 = Integer.toString((ipAddr[0] & 0xFF));
+        String i1 = Integer.toString((ipAddr[1] & 0xFF));
+        String i2 = Integer.toString((ipAddr[2] & 0xFF));
+        String i3 = Integer.toString((ipAddr[3] & 0xFF));
+        address = i0 + "." + i1 + "." + i2 + "." + i3;
+        return address;
     }
 }

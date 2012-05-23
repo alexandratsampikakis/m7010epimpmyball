@@ -6,13 +6,12 @@ package mygame.balls.server;
 
 import com.jme3.asset.AssetManager;
 import com.jme3.material.Material;
-import com.jme3.math.ColorRGBA;
-import com.jme3.math.Vector3f;
 import com.jme3.network.HostedConnection;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
 import mygame.balls.UserData;
+import mygame.boardgames.GridPoint;
 
 /**
  *
@@ -25,6 +24,8 @@ public class User {
     private Geometry geometry;
     private HostedConnection connection;
     private long id;
+    private GridPoint currentArea;
+
 
     public User(AssetManager assetManager, UserData userData, HostedConnection connection) {
         this.userData = userData;
@@ -44,6 +45,9 @@ public class User {
         geometry.addControl(ball);
     }
  
+    public void update() {
+        ball.moveForward();
+    }
 
     public Geometry getGeometry() {
         return geometry;
@@ -63,5 +67,13 @@ public class User {
 
     public UserData getUserData() {
         return userData;
+    }
+    
+    public GridPoint getCurrentArea() {
+        return currentArea;
+    }
+    
+    public void setCurrentArea(GridPoint p) {
+        currentArea = p;
     }
 }

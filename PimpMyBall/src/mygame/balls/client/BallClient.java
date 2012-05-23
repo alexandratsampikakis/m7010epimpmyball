@@ -19,7 +19,6 @@ import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
 import com.jme3.system.NanoTimer;
-import com.jme3.system.Timer;
 import java.awt.Component;
 import java.util.ArrayList;
 //import java.util.Timer.jme.util.Timer;
@@ -53,14 +52,21 @@ public class BallClient extends SimpleApplication {
     protected BulletAppState viewAppState, ghostAppState;
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private User playerUser;
+    private Vector3f currentDirection = Vector3f.ZERO;
+    private Vector3f lastSentDirection = Vector3f.ZERO;
     private boolean left = false,
             right = false,
             up = false,
             down = false;
     private mygame.balls.Level level;
     private ChaseCamera chaseCamera;
-    NanoTimer timer;
+    // Timer variables
+    private final double smallAngle = Math.toRadians(5d); // 5 degrees in radians
+    private final double shortUpdateTime = 0.1d;
+    private final double longUpdateTime = 0.5d;
+    private double updateTime = longUpdateTime;
     //-----------------------------------
+    //--Test Code
     //-----------------------------------
     private UserData playerUserData;
     static Client centralServerClient;
@@ -120,6 +126,7 @@ public class BallClient extends SimpleApplication {
     }
 
     //-----------------------------------
+    //--End of test code
     //-----------------------------------
     public BallClient(ServerInfo serverInfo, UserData userData, int secret) throws Exception {
 
@@ -130,7 +137,6 @@ public class BallClient extends SimpleApplication {
 
         this.playerUserData = userData;
         this.secret = secret;
-        timer = new NanoTimer();
     }
 
     @Override
@@ -186,16 +192,16 @@ public class BallClient extends SimpleApplication {
                 BallUpdateMessage buMessage = (BallUpdateMessage) message;
                 User user = users.getValue(buMessage.id);
                 Ball ghost = user.getGhost();
-                System.out.println("Received position " + buMessage.position);
 
                 // Update the ghost
                 ghost.setPosition(buMessage.position);
                 ghost.setVelocity(buMessage.velocity);
                 ghost.setDirection(buMessage.direction);
+                System.out.print("Received message " + buMessage.position);
 
             } else if (message instanceof UserAddedMessage) {
                 UserAddedMessage uaMessage = (UserAddedMessage) message;
-                System.out.println("Add user " + uaMessage.userData.userName);
+                System.out.println("Adding user " + uaMessage.userData.userName);
                 setupUser(uaMessage.userData);
 
             } else if (message instanceof ConnectedUsersMessage) {
@@ -224,7 +230,7 @@ public class BallClient extends SimpleApplication {
             return;
         }
 
-        Vector3f direction = new Vector3f(0, 0, 0);
+        currentDirection = new Vector3f(0, 0, 0);
         Ball playerBall = playerUser.getBall();
 
         if (!stateManager.hasState(bgas)) {
@@ -235,32 +241,61 @@ public class BallClient extends SimpleApplication {
             camLeft.y = 0f;
 
             if (left) {
-                direction.addLocal(camLeft);
+                currentDirection.addLocal(camLeft);
             }
             if (right) {
-                direction.addLocal(camLeft.negate());
+                currentDirection.addLocal(camLeft.negate());
             }
             if (up) {
-                direction.addLocal(camDir);
+                currentDirection.addLocal(camDir);
             }
             if (down) {
-                direction.addLocal(camDir.negate());
+                currentDirection.addLocal(camDir.negate());
             }
         }
-        playerBall.setDirection(direction);
+
+        currentDirection.normalizeLocal();
+        playerBall.setDirection(currentDirection);
+
         // Move all ghost objects
         for (User user : users.getValues()) {
-            user.Update();
+            user.update();
         }
 
         // Send direction to server on a fixed interval
-        if (timeCounter > 0.1f) {
-            System.out.println("At timely time " + timer.getTimeInSeconds());
+        renewUpdateTime();
+        if (timeCounter > updateTime) {
+            // Reset to long update time
+            System.out.println("Update time: " + updateTime);
             sendBallDirectionMessage();
+            lastSentDirection = currentDirection;
             timeCounter = 0f;
-
+            updateTime = longUpdateTime;
         }
         timeCounter += tpf;
+    }
+
+    private void renewUpdateTime() {
+
+        double newUpdateTime;
+        // If current direction is zero:
+        if (currentDirection.equals(Vector3f.ZERO)) {
+            // If zero was just pressed, time to start updating!
+            if (lastSentDirection.equals(currentDirection)) {
+                newUpdateTime = shortUpdateTime;
+            } else {
+                newUpdateTime = longUpdateTime;
+            }
+        } else {
+            if (currentDirection.angleBetween(lastSentDirection) < smallAngle) {
+                newUpdateTime = longUpdateTime;
+            } else {
+                newUpdateTime = shortUpdateTime;
+            }
+        }
+        if (newUpdateTime < updateTime) {
+            updateTime = newUpdateTime;
+        }
     }
     private ActionListener actionListener = new ActionListener() {
 

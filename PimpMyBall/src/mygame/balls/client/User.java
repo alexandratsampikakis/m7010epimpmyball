@@ -98,7 +98,7 @@ public class User {
         return matRed;
     }
 
-    public void Update() {
+    public void update() {
         ball.moveForward();
         ghost.moveForward();
         ball.adjustToBall(ghost);
