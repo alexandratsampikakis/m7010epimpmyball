@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package mygame;
 
 import de.lessvoid.nifty.EndNotify;
@@ -37,12 +33,7 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.GL11;
 
-/**
- *
- * @author Alex
- */
 public class ControlsScreenController implements ScreenController, KeyInputHandler {
-    
   private static final Logger logger = Logger.getLogger(ControlsScreenController.class.getName());
   private static final Color HELP_COLOR = new Color("#aaaf");
 

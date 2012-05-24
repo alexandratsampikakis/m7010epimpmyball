@@ -1,9 +1,5 @@
 package de.lessvoid.nifty.controls.textfield;
 
-import com.jme3.app.Application;
-import com.jme3.app.SimpleApplication;
-import com.jme3.app.state.AbstractAppState;
-import com.jme3.app.state.AppStateManager;
 import java.util.Properties;
 
 import de.lessvoid.nifty.Nifty;
@@ -28,18 +24,16 @@ import mygame.Main;
  * @author void
  */
 public class TextFieldDialogController implements Controller {
-    
-  public static Main haxx;
-  
   private TextField mainTextField;
+  private TextField passwordMainTextField;
   private CheckBox passwordCharCheckBox;
   private TextField passwordCharTextField;
-  private TextField passwordCharTextField2;
   private CheckBox maxLengthEnableCheckBox;
   private TextField maxLengthTextField;
   private Label textChangedLabel;
   private Label keyEventLabel;
   private Button logInButton;
+  private Button cancelButton;
   
   @Override
   public void bind(
@@ -51,18 +45,21 @@ public class TextFieldDialogController implements Controller {
     this.mainTextField = screen.findNiftyControl("mainTextField", TextField.class);
     this.passwordCharCheckBox = screen.findNiftyControl("passwordCharCheckBox", CheckBox.class);
     this.passwordCharTextField = screen.findNiftyControl("passwordCharTextField", TextField.class);
-    this.passwordCharTextField2 = screen.findNiftyControl("passwordCharTextField", TextField.class);
+    this.passwordMainTextField = screen.findNiftyControl("passwordMainTextField", TextField.class);
     this.maxLengthEnableCheckBox = screen.findNiftyControl("maxLengthEnableCheckBox", CheckBox.class);
     this.maxLengthTextField = screen.findNiftyControl("maxLengthTextField", TextField.class);
     this.textChangedLabel = screen.findNiftyControl("textChangedLabel", Label.class);
     this.keyEventLabel = screen.findNiftyControl("keyEventLabel", Label.class);
-    this.logInButton = screen.findNiftyControl("logInButton", Button.class);    
+    this.logInButton = screen.findNiftyControl("logInButton", Button.class);
+    this.cancelButton = screen.findNiftyControl("logInButton", Button.class);
+    
   }
 
   @Override
   public void init(final Properties parameter, final Attributes controlDefinitionAttributes) {
     //passwordCharTextField.setText("*");
-    passwordCharTextField2.setText("");
+    mainTextField.setText("alex");
+    passwordMainTextField.setText("pass");
     //maxLengthTextField.setText("5");
     textChangedLabel.setText("---");
     keyEventLabel.setText("---");
@@ -70,6 +67,7 @@ public class TextFieldDialogController implements Controller {
     setPasswordCharTextFieldEnableState();
     setMaxLengthFieldEnableState();
     logInButton.enable();
+    cancelButton.enable();
   }
 
   @Override
@@ -104,6 +102,12 @@ public class TextFieldDialogController implements Controller {
   public void onTextChanged(final String id, final TextFieldChangedEvent event) {
     textChangedLabel.setText(event.getText());
   }
+  
+  @NiftyEventSubscriber(id="passwordMainTextField")
+  public void onPasswordTextChanged(final String id, final TextFieldChangedEvent event) {
+    //textChangedLabel.setText(event.getText());
+      password = passwordMainTextField.getText();
+  }
 
   @NiftyEventSubscriber(id="maxLengthTextField")
   public void onMaxLengthTextChanged(final String id, final TextFieldChangedEvent event) {
@@ -121,6 +125,11 @@ public class TextFieldDialogController implements Controller {
   public void onTextChanged(final String id, final NiftyInputEvent event) {
     keyEventLabel.setText(event.toString() + " [" + event.getCharacter() + "]");
   }
+  
+  @NiftyEventSubscriber(id="passwordMainTextField")
+  public void onPasswordTextChanged(final String id, final NiftyInputEvent event) {
+    //keyEventLabel.setText(event.toString() + " [" + event.getCharacter() + "]");
+  }
 
   private void setPasswordCharTextFieldEnableState() {
     passwordCharTextField.setEnabled(passwordCharCheckBox.isChecked());
@@ -132,8 +141,8 @@ public class TextFieldDialogController implements Controller {
       if (passwordCharTextField.getText().isEmpty()) {
         mainTextField.disablePasswordChar();
       } else {
-        mainTextField.enablePasswordChar(passwordCharTextField.getText().charAt(0));
-        mainTextField.enablePasswordChar(passwordCharTextField2.getText().charAt(0));
+        //mainTextField.enablePasswordChar(passwordCharTextField.getText().charAt(0));
+        //mainTextField.enablePasswordChar(passwordCharTextField2.getText().charAt(0));
       }
     } else {
       //mainTextField.disablePasswordChar();
@@ -149,10 +158,18 @@ public class TextFieldDialogController implements Controller {
     }
   }
   
+  public static Main haxx;
+  String username;
+  String password;
   @NiftyEventSubscriber(id="logInButton")
-  public void onLogInButtonClicked(final String id, final ButtonClickedEvent event) {      
-      haxx.sendLogin(mainTextField.getText(), passwordCharTextField2.getText());
-
+  public void onLogInButtonClicked(final String id, final ButtonClickedEvent event) {
+    haxx.sendLogin(mainTextField.getText(), passwordMainTextField.getText());
   }
+  
+  @NiftyEventSubscriber(id="cancelButton")
+  public void onCancelButtonClicked(final String id, final ButtonClickedEvent event) {
+    // Exit on close.
+  }
+  
 }
 

@@ -33,6 +33,7 @@ public class TextFieldDialogControlDefinition {
     new ControlDefinitionBuilder(NAME) {{
       controller(new TextFieldDialogController());
       control(new ControlBuilder(DialogPanelControlDefinition.NAME) {{
+          
         panel(new PanelBuilder() {{
           childLayoutHorizontal();
           control(builders.createLabel("Username:"));
@@ -44,8 +45,7 @@ public class TextFieldDialogControlDefinition {
         panel(new PanelBuilder() {{
           childLayoutHorizontal();
           control(builders.createLabel("Password:"));
-          control(new TextFieldBuilder("passwordCharTextField2", "") {{
-            maxLength(10);
+          control(new TextFieldBuilder("passwordMainTextField") {{
             width("*");
           }});
         }});
@@ -113,9 +113,24 @@ public class TextFieldDialogControlDefinition {
           width("100%");
           childLayoutVertical();
           control(new ButtonBuilder("logInButton", "Log in") {{
-            //alignCenter();
               alignRight();
               textVAlignCenter();
+              interactOnClick("startGame(hud)");
+          }});
+        }});
+        }});
+        
+        //Cancel-button
+        panel(builders.vspacer());
+        panel(new PanelBuilder() {{
+          childLayoutHorizontal();
+          panel(new PanelBuilder() {{
+          width("100%");
+          childLayoutVertical();
+          control(new ButtonBuilder("cancelButton", "Cancel") {{
+              alignRight();
+              textVAlignCenter();
+              interactOnClick("quitGame()");
           }});
         }});
         }});
