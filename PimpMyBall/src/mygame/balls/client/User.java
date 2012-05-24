@@ -206,7 +206,7 @@ public class User {
         BitmapText userNameText = new BitmapText(guiFont, false);
         userNameText.setSize(1);
         userNameText.setText(userData.userName + " (" + userData.rank + ")");
-        userNameText.setColor(ColorRGBA.DarkGray);
+        userNameText.setColor(ColorRGBA.LightGray);
         userNameText.setQueueBucket(Bucket.Transparent);
         userNameText.setName("UserNameText");
         
