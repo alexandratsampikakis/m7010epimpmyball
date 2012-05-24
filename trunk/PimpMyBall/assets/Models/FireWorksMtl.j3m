@@ -1,0 +1,17 @@
+Material MyMaterial : Common/MatDefs/Misc/Particle.j3md {
+    MaterialParameters {
+        GlowMap : Textures/colors.png
+        Texture : Textures/colors.png
+    }
+    AdditionalRenderState {
+      FaceCull Back
+      Wireframe Off
+      DepthWrite On
+      PolyOffset 0.0 0.0
+      AlphaTestFalloff 0.0
+      Blend Alpha
+      PointSprite Off
+      ColorWrite On
+      DepthTest On
+    }
+}

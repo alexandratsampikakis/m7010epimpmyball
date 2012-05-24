@@ -132,11 +132,12 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         }
         @Override
         public void onGameWon(CellColor winningColor) {
-            setText(((color == winningColor) ? "You win!" : "You lose, haha..."), winningColor.getColorRGBA());
+            app.showFireworks(board.getLocalTranslation());
+            // setText(((color == winningColor) ? "You win!" : "You lose, haha..."), winningColor.getColorRGBA());
         }
         @Override
         public void onOpponentSurrender() {
-            setText("Opponent surrendered, you win!");
+            // setText("Opponent surrendered, you win!");
         }
     };
     
@@ -186,6 +187,8 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         super.stateDetached(stateManager);
         
         app.chasePlayer();
+        app.getGuiNode().detachChildNamed("CrossHairs");
+        app.getGuiNode().detachChildNamed("DisplayText");
         app.getRootNode().detachChild(board);
         
         System.out.println("Detached " + this + ".");
@@ -349,10 +352,11 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
             
             flyCam.setMoveSpeed(0f);
             
-            BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/Default.fnt");
+            BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
             BitmapText ch = new BitmapText(guiFont, false);
             int size = guiFont.getCharSet().getRenderedSize();
-            ch.setSize(size * 2);
+            ch.setName("CrossHairs");
+            ch.setSize(size);
             ch.setText("+");        // fake crosshairs :)
             ch.setLocalTranslation( // center
                     app.getCamera().getWidth() / 2 - size / 3 * 2,
@@ -379,7 +383,6 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         public void onTouchEvent(TouchEvent evt) {}
     };
 
-    
     
     private class MessageParser implements Callable {
         
