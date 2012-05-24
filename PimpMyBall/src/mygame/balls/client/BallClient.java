@@ -27,6 +27,7 @@ import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
 import com.jme3.shadow.BasicShadowRenderer;
+import com.jme3.shadow.PssmShadowRenderer;
 import com.jme3.shadow.ShadowUtil;
 import java.awt.Component;
 import java.util.ArrayList;
@@ -443,16 +444,10 @@ public class BallClient extends SimpleApplication {
     }
 
     public void initShadow() {
-        points = new Vector3f[8];
-        for (int i = 0; i < points.length; i++) {
-            points[i] = new Vector3f();
-        }
-        bsr = new BasicShadowRenderer(assetManager, 512);
-        bsr.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
-        viewPort.addProcessor(bsr);
-
-        Camera shadowCam = bsr.getShadowCamera(); //Behövs denna?
-        ShadowUtil.updateFrustumPoints2(shadowCam, points);
+        PssmShadowRenderer pssmRenderer = new PssmShadowRenderer(assetManager, 1024, 3);
+        pssmRenderer.setDirection(new Vector3f(-.5f,-.5f,-.5f).normalizeLocal()); // light direction
+        viewPort.addProcessor(pssmRenderer);
+        pssmRenderer.setShadowIntensity(0.3f);
     }
 
     public void chasePlayer() {
