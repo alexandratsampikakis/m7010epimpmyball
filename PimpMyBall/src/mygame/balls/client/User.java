@@ -77,10 +77,10 @@ public class User {
         
             chatLines[i] = chatLine;
         }
-        /*
+        
         /*
         Spatial crown = assetManager.loadModel("Models/golden-crown/obj.j3o");
-        crown.setLocalScale(0.2f);
+        // crown.setLocalScale(0.2f);
         crown.setLocalTranslation(0, 5, 0);
         
         Material mat = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
@@ -92,7 +92,9 @@ public class User {
         
         crown.setMaterial(mat);
         
-        blingNode.attachChild(crown);*/
+        blingNode.attachChild(crown);
+         */
+        
         blingNode.attachChild(chatNode);        
     }
 

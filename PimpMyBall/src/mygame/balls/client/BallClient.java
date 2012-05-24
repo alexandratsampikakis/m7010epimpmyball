@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
+import mygame.Fireworks;
+import mygame.Settings;
 import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
 import mygame.admin.messages.LoginMessage;
@@ -78,7 +80,7 @@ public class BallClient extends SimpleApplication {
             up = false,
             down = false;
     private TestLevel viewLevel, ghostLevel;
-    private ChaseCamera chaseCamera;
+    private ChaseCamera chaseCamera = null;
     // Timer variables
     private final double smallAngle = Math.toRadians(5d); // 5 degrees in radians
     private final double shortUpdateTime = 0.1d;
@@ -87,7 +89,6 @@ public class BallClient extends SimpleApplication {
     private int currentGameId = -1;
     private HashMap<Integer, GomokuBoard3D> currentGames =
             new HashMap<Integer, GomokuBoard3D>();
-    public static boolean SHOW_ALL_GOMOKU_GAMES = true;
     
     //-----------------------------------
     //--Test Code
@@ -162,6 +163,9 @@ public class BallClient extends SimpleApplication {
         this.secret = secret;
     }
 
+    
+    private Fireworks fireworks;
+    
     @Override
     public void simpleInitApp() {
 
@@ -186,6 +190,9 @@ public class BallClient extends SimpleApplication {
         setupChat();
         setupUser(playerUserData);
 
+        fireworks = new Fireworks(assetManager);
+        rootNode.attachChild(fireworks);
+        
         playerUser = users.getValue(playerUserData.id);
         playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
@@ -398,10 +405,18 @@ public class BallClient extends SimpleApplication {
                 up = isPressed;
             } else if (binding.equals("CharBackward")) {
                 down = isPressed;
+            } else if (!isPressed && binding.equals("Shadow")) {
+                if (usesShadows) {
+                    viewPort.removeProcessor(pssmRenderer);
+                } else {
+                    viewPort.addProcessor(pssmRenderer);
+                }
+                usesShadows = !usesShadows;
             }
         }
     };
-
+    private boolean usesShadows = true;
+    
     private void setupUser(UserData userData) {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
@@ -431,20 +446,25 @@ public class BallClient extends SimpleApplication {
         inputManager.addListener(actionListener, "CharRight");
         inputManager.addListener(actionListener, "CharForward");
         inputManager.addListener(actionListener, "CharBackward");
+        
+        inputManager.addMapping("Shadow", new KeyTrigger(KeyInput.KEY_K));
+        inputManager.addListener(actionListener, "Shadow");
     }
 
     private void initAppStates() {
         viewAppState = new BulletAppState();
-        viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
+        // viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(viewAppState);
 
         ghostAppState = new BulletAppState();
-        ghostAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
+        // ghostAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(ghostAppState);
     }
 
+    private PssmShadowRenderer pssmRenderer;
+    
     public void initShadow() {
-        PssmShadowRenderer pssmRenderer = new PssmShadowRenderer(assetManager, 1024, 3);
+        pssmRenderer = new PssmShadowRenderer(assetManager, 1024, 2);
         pssmRenderer.setDirection(new Vector3f(-.5f,-.5f,-.5f).normalizeLocal()); // light direction
         viewPort.addProcessor(pssmRenderer);
         pssmRenderer.setShadowIntensity(0.3f);
@@ -455,12 +475,15 @@ public class BallClient extends SimpleApplication {
     }
 
     private void setCameraTarget(Geometry target) {
+        
         flyCam.setEnabled(false);
+
         chaseCamera = new ChaseCamera(cam, target, inputManager);
         chaseCamera.setDragToRotate(false);
         chaseCamera.setMaxVerticalRotation((float) Math.PI / 3);
         chaseCamera.setDefaultDistance(30f);
         chaseCamera.setLookAtOffset(new Vector3f(0, 5, 0));
+        chaseCamera.setUpVector(Vector3f.UNIT_Y.clone());
     }
 
     private void initLevel() {
@@ -491,6 +514,12 @@ public class BallClient extends SimpleApplication {
     private void updateScore(long winnerId, long loserId, int scoreChange) {
         users.getValue(winnerId).updateScore(scoreChange);
         users.getValue(loserId).updateScore(-scoreChange);
+        
+        if (winnerId == playerUserData.id) {
+            client.send(new ChatMessage("I win! +" + scoreChange, playerUserData.id));
+        } else if (loserId == playerUserData.id) {
+            client.send(new ChatMessage("I lose, -" + scoreChange, playerUserData.id));
+        }
     }
 
     private class GomokuMessageReceiver implements Callable {
@@ -512,7 +541,10 @@ public class BallClient extends SimpleApplication {
                 } else {
                     GomokuBoard3D dummyBoard = currentGames.get(gem.gameID);
                     rootNode.detachChild(dummyBoard);
+                    
+                    showFireworks(dummyBoard.getLocalTranslation());
                 }
+                
                 updateScore(gem.winnerID, gem.loserID, gem.scoreChange);
 
                 User u1 = users.getValue(gem.winnerID);
@@ -533,7 +565,7 @@ public class BallClient extends SimpleApplication {
                     GomokuGame newGame = bgas.startNewGame(gsm);
                     currentGameId = newGame.getID();
 
-                } else if (SHOW_ALL_GOMOKU_GAMES) {
+                } else if (Settings.SHOW_ALL_GOMOKU_BOARDS) {
 
                     GomokuGame game = new GomokuGame(gsm);
                     GomokuBoard3D dummyBoard = new GomokuBoard3D(assetManager, game);
@@ -571,28 +603,24 @@ public class BallClient extends SimpleApplication {
             return message;
         }
     }
+    
+    
+    public void showFireworks(Vector3f location) {
+        if (Settings.FANCY_EFFECTS)
+            fireworks.emitAtPosition(location);
+    }
+    
     private BitmapText chatTextField;
     private String chatString = "";
     private boolean isEnteringChat = false;
     private RawInputListener rawInputListener = new RawInputListener() {
 
-        public void beginInput() {
-        }
-
-        public void endInput() {
-        }
-
-        public void onJoyAxisEvent(JoyAxisEvent evt) {
-        }
-
-        public void onJoyButtonEvent(JoyButtonEvent evt) {
-        }
-
-        public void onMouseMotionEvent(MouseMotionEvent evt) {
-        }
-
-        public void onMouseButtonEvent(MouseButtonEvent evt) {
-        }
+        public void beginInput() {}
+        public void endInput() {}
+        public void onJoyAxisEvent(JoyAxisEvent evt) {}
+        public void onJoyButtonEvent(JoyButtonEvent evt) {}
+        public void onMouseMotionEvent(MouseMotionEvent evt) {}
+        public void onMouseButtonEvent(MouseButtonEvent evt) {}
 
         public void onKeyEvent(KeyInputEvent evt) {
 
@@ -639,11 +667,9 @@ public class BallClient extends SimpleApplication {
                 chatTextField.setText("Enter message: " + chatString + "_");
                 evt.setConsumed();
             }
-
         }
-
-        public void onTouchEvent(TouchEvent evt) {
-        }
+        
+        public void onTouchEvent(TouchEvent evt) {}
     };
 
     private void setupChat() {

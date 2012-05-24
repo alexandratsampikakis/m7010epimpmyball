@@ -90,7 +90,14 @@ public final class TestLevel extends Node {
         bas.getPhysicsSpace().add(wall);
     }
 
+    private Spatial treeModel;
+    private CollisionShape treeCollisionShape;
+    
     public void initTrees(AssetManager assetManager, BulletAppState bulletAppState) {
+        
+        treeModel = assetManager.loadModel("Models/Tree/Tree.mesh.xml");
+        treeCollisionShape = CollisionShapeFactory.createMeshShape((Node) treeModel);
+        
         createTree(-300, 500, 7, 100, 2, assetManager, bulletAppState);
         createTree(-210, 315, 5, 50, 2, assetManager, bulletAppState);
         createTree(-20, 130, 5, 50, 5, assetManager, bulletAppState);
@@ -101,22 +108,21 @@ public final class TestLevel extends Node {
     }
 
     public void createTree(float xTree, float zTree, float sTree, float rTree,
-        
         int toHigherTree, AssetManager assetManager, BulletAppState bulletAppState) {
-        Spatial tree;
-        RigidBodyControl treeControl;
-        tree = assetManager.loadModel("Models/Tree/Tree.mesh.xml");
+
+        Spatial tree = treeModel.clone();
         Vector2f xz = new Vector2f(xTree, zTree);
         float yTree = terrain.getHeightmapHeight(xz) + toHigherTree;
         tree.setLocalTranslation(xTree, yTree, zTree);
         tree.scale(sTree);
         tree.rotate(0, rTree, 0);
-
-        CollisionShape treeCollisionShape = CollisionShapeFactory.createMeshShape((Node) tree);
-        treeControl = new RigidBodyControl(treeCollisionShape, 0);
+        tree.setShadowMode(ShadowMode.Cast);
+        
+        RigidBodyControl treeControl = new RigidBodyControl(treeCollisionShape, 0);
         tree.addControl(treeControl);
-        terrain.attachChild(tree);
         bulletAppState.getPhysicsSpace().add(treeControl);
+        
+        terrain.attachChild(tree);
     }
     
         public void initGraphics(AssetManager assetManager) {
@@ -126,11 +132,13 @@ public final class TestLevel extends Node {
     }
 
     public void initLight() {
+        
         // Create directional light
         DirectionalLight directionalLight = new DirectionalLight();
         directionalLight.setDirection(new Vector3f(-0.5f, -.5f, -.5f).normalizeLocal());
-        directionalLight.setColor(new ColorRGBA(0.50f, 0.50f, 0.50f, 1.0f));
+        directionalLight.setColor(ColorRGBA.White);
         addLight(directionalLight);
+        
         //Create ambient light
         AmbientLight ambientLight = new AmbientLight();
         ambientLight.setColor((ColorRGBA.White).mult(2.5f));
