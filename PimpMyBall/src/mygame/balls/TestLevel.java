@@ -32,8 +32,6 @@ import com.jme3.util.SkyFactory;
  */
 public final class TestLevel extends Node {
 
-    private Spatial tree;
-    private RigidBodyControl treeControl;
     private BoxCollisionShape wallShape = new BoxCollisionShape(new Vector3f(512, 512, 512));
     private TerrainQuad terrain;
 
@@ -41,7 +39,7 @@ public final class TestLevel extends Node {
         setUpTerrain(assetManager);
         appState.getPhysicsSpace().add(terrain);
         addWalls(appState);
-        //initTrees(assetManager, appState);
+        initTrees(assetManager, appState);
     }
 
     final protected void setUpTerrain(AssetManager assetManager) {
@@ -103,8 +101,10 @@ public final class TestLevel extends Node {
     }
 
     public void createTree(float xTree, float zTree, float sTree, float rTree,
-            int toHigherTree, AssetManager assetManager, BulletAppState bulletAppState) {
-
+        
+        int toHigherTree, AssetManager assetManager, BulletAppState bulletAppState) {
+        Spatial tree;
+        RigidBodyControl treeControl;
         tree = assetManager.loadModel("Models/Tree/Tree.mesh.xml");
         Vector2f xz = new Vector2f(xTree, zTree);
         float yTree = terrain.getHeightmapHeight(xz) + toHigherTree;

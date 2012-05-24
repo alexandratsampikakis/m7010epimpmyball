@@ -120,40 +120,39 @@ public class BallServer extends SimpleApplication {
      * For every user, send an updatemessage to everyone who's interested
      */
     private void sendBallUpdatesToAOIs() {
-    for (User user : users.getValues()) {
+        for (User user : users.getValues()) {
             Ball ball = user.getBall();
             HashSet filter = aoiManager.getInterestedConnections(user);
             server.broadcast(Filters.in(filter), new BallUpdateMessage(ball));
         }
     }
-            
+
     //SNÖÖÖR!!
     /*
     private void broadcastBallData(boolean toAll) {
-        for (User user : users.getValues()) {
-            Ball ball = user.getBall();
-            BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
-
-            if (toAll) { // check if the message should be sent to all clients
-                server.broadcast(ballMessage);
-                //.---------
-                System.out.println("TO ALL!!!!!!");
-                //.---------
-
-            } else {// Otherwise, send only to interested clients
-                HashSet filter = aoiManager.getInterestedConnections(user);
-                server.broadcast(Filters.in(filter), ballMessage);
-                //.---------
-                System.out.println("TO SOME: ");
-                for (Object o : filter) {
-                    HostedConnection h = (HostedConnection) o;
-                    System.out.println("    " + h.getAttribute("ID"));
-                }
-                //.---------
-            }
-        }
+    for (User user : users.getValues()) {
+    Ball ball = user.getBall();
+    BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
+    
+    if (toAll) { // check if the message should be sent to all clients
+    server.broadcast(ballMessage);
+    //.---------
+    System.out.println("TO ALL!!!!!!");
+    //.---------
+    
+    } else {// Otherwise, send only to interested clients
+    HashSet filter = aoiManager.getInterestedConnections(user);
+    server.broadcast(Filters.in(filter), ballMessage);
+    //.---------
+    System.out.println("TO SOME: ");
+    for (Object o : filter) {
+    HostedConnection h = (HostedConnection) o;
+    System.out.println("    " + h.getAttribute("ID"));
+    }
+    //.---------
+    }
+    }
     }*/
-
     public void broadcastGomokuUpdate(GomokuGame game, CellColor color, GridPoint p) {
         server.broadcast(new GomokuUpdateMessage(game, color, p));
     }
@@ -163,13 +162,15 @@ public class BallServer extends SimpleApplication {
     }
 
     public void broadcastGomokuGameFinished(GomokuGame game, WinningRow row) {
-        
+
         RemotePlayerServer p1 = (RemotePlayerServer) game.getStartingPlayer();
         RemotePlayerServer p2 = (RemotePlayerServer) p1.getOpponent();
-        
+
         p1.getUser().getBall().setMass(Ball.defaultMass);
+        p1.getUser().setImmortal();
         p2.getUser().getBall().setMass(Ball.defaultMass);
-        
+        p2.getUser().setImmortal();
+
         int scoreChange = 50; // TODO: Compute score change
         server.broadcast(new GomokuEndMessage(game, row, scoreChange));
     }
@@ -187,14 +188,6 @@ public class BallServer extends SimpleApplication {
         UserAddedMessage userAddedMessage = new UserAddedMessage(newUserData);
         server.broadcast(Filters.notEqualTo(newConnection), userAddedMessage);
     }
-
-    /*
-    private void broadcastConnectedUsers() {
-        ConnectedUsersMessage cuMessage = new ConnectedUsersMessage(getUserDataList());
-        server.broadcast(cuMessage);
-    }*/
-    
-    
 
     /**
      * Transmit data on all users to a single client
@@ -271,15 +264,8 @@ public class BallServer extends SimpleApplication {
             } else if (message instanceof LogoutMessage) {
                 LogoutMessage lMessage = (LogoutMessage) message;
                 User user = users.getValue(lMessage.userId);
-                UserLeftServerMessage ulMessage = new UserLeftServerMessage(user);
-                // Inform the central server that the user has logged out
-                centralServerClient.send(ulMessage);
-                // Inform all remaining users
-                server.broadcast(ulMessage);
                 removeUser(user);
-            } 
-            
-            else if (message instanceof RequestUsersMessage) {
+            } else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
                 //long id = ruMessage.id;
                 sendConnectedUsersToSingleUser(conn);
@@ -304,8 +290,6 @@ public class BallServer extends SimpleApplication {
         public Object call() {
             long lostId = (Long) conn.getAttribute("ID");
             User lostUser = users.getValue(lostId);
-            server.broadcast(new UserLeftServerMessage(lostUser));
-            centralServerClient.send(new UserLeftServerMessage(lostUser));
             removeUser(lostUser);
             return conn;
         }
@@ -355,9 +339,9 @@ public class BallServer extends SimpleApplication {
                 Ball ballB = (Ball) b;
                 User userA = users.getValue(ballA.getId());
                 User userB = users.getValue(ballB.getId());
-                
-                if (ballA.getMass() > 0 && ballB.getMass() > 0) {
-                
+
+                if (userA.canPlay() && userB.canPlay()) {
+
                     // if (!ballA.isKinematic() && !ballB.isKinematic()) {
 
                     /*
@@ -366,16 +350,16 @@ public class BallServer extends SimpleApplication {
                     
                     Vector3f fromTo = v2.add(v1.negate()); // .mult(0.5f);
                      */
-                    
+
                     // Stop the balls from moving
                     ballA.setMass(0);
                     ballB.setMass(0);
-                    
+
                     /*
                     ballA.setKinematic(true);
                     ballB.setKinematic(true);
                      */
-                    
+
                     gomokuSlave.startGame(userA, userB);
                 }
             }
@@ -392,10 +376,10 @@ public class BallServer extends SimpleApplication {
     public void simpleUpdate(float tpf) {
 
         if (longTimeCounter > longUpdateTime) {
-            
+
             server.broadcast(new AggregateBallUpdatesMessage(users.getValues()));
             longTimeCounter = 0;
-            
+
         } else if (shortTimeCounter > shortUpdateTime) {
             sendBallUpdatesToAOIs();
             shortTimeCounter = 0;
@@ -405,7 +389,7 @@ public class BallServer extends SimpleApplication {
         longTimeCounter += tpf;
 
         for (User user : users.getValues()) {
-            user.update();
+            user.update(tpf);
             aoiManager.setAOIMidpoint(user);
         }
     }
@@ -426,14 +410,20 @@ public class BallServer extends SimpleApplication {
         user.getBall().setPosition(userData.position);
 
         conn.setAttribute("ID", callerId);
-        
+
         return user;
     }
 
     private void removeUser(User lostUser) {
+        UserLeftServerMessage ulMessage = new UserLeftServerMessage(lostUser);
+        // Inform the central server that the user has logged out
+        centralServerClient.send(ulMessage);
+        // Inform all remaining users
+        server.broadcast(ulMessage);
+        // Remove the user completely
         users.removeValue(lostUser);
         level.detachChild(lostUser.getGeometry());
-        bulletAppState.getPhysicsSpace().remove(lostUser.getBall());
+        bulletAppState.getPhysicsSpace().remove(lostUser.getBall());        
     }
 
     private void initAppState() {

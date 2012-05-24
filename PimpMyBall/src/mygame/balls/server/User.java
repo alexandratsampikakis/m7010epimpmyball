@@ -25,6 +25,8 @@ public class User {
     private HostedConnection connection;
     private long id;
     private GridPoint currentArea;
+    private float immortality;
+    private float maxImmortalityTime = 5f;
 
 
     public User(AssetManager assetManager, UserData userData, HostedConnection connection) {
@@ -33,6 +35,7 @@ public class User {
         ball = new Ball(assetManager, id);
         this.connection = connection;
         addGeometry(assetManager);
+        immortality = maxImmortalityTime;
     }
 
     private void addGeometry(AssetManager assetManager) {
@@ -45,8 +48,9 @@ public class User {
         geometry.addControl(ball);
     }
  
-    public void update() {
+    public void update(float tpf) {
         ball.moveForward();
+        if (immortality > 0) immortality -= tpf;
     }
 
     public Geometry getGeometry() {
@@ -75,5 +79,13 @@ public class User {
     
     public void setCurrentArea(GridPoint p) {
         currentArea = p;
+    }
+    
+    public boolean canPlay() {
+        return (ball.getMass() > 0 && immortality <= 0);
+    }
+    
+    public void setImmortal() {
+        immortality = maxImmortalityTime;
     }
 }
