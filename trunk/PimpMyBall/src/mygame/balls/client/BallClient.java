@@ -297,11 +297,9 @@ public class BallClient extends SimpleApplication {
         }
     }
 
-    //-----------------------------------------------------------
-    //    Slut nätverksbekymmer, det nedanför kan skickas bort!!!
-    //-----------------------------------------------------------
     public void removeUser(User lostUser) {
         users.removeValue(lostUser);
+        rootNode.detachChild(lostUser.getBlingNode());
         viewLevel.detachChild(lostUser.getGeometry());
         ghostLevel.detachChild(lostUser.getGeometry());
         viewAppState.getPhysicsSpace().remove(lostUser.getBall());

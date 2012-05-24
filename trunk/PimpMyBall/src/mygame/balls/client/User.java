@@ -78,6 +78,7 @@ public class User {
             chatLines[i] = chatLine;
         }
         /*
+        /*
         Spatial crown = assetManager.loadModel("Models/golden-crown/obj.j3o");
         crown.setLocalScale(0.2f);
         crown.setLocalTranslation(0, 5, 0);
