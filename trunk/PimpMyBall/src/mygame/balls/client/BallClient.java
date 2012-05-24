@@ -5,6 +5,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
+import com.jme3.audio.AudioNode;
 import com.jme3.bullet.BulletAppState;
 import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
@@ -496,6 +497,14 @@ public class BallClient extends SimpleApplication {
         viewLevel.initGraphics(assetManager);
         rootNode.attachChild(viewLevel);
         rootNode.attachChild(ghostLevel);
+        initSound();
+    }
+    
+        //Play sound
+    public void initSound() {
+        AudioNode backgroundMusic = new AudioNode(assetManager, "Sounds/gameMusic.wav", true);
+        backgroundMusic.setVolume(3);
+        backgroundMusic.play();
     }
 
     public User getPlayer() {
