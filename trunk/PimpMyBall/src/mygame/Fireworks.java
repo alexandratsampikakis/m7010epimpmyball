@@ -38,6 +38,11 @@ public class Fireworks extends Node {
         effect2.emitAllParticles();
     }
     
+    public void explosionAtPosition(Vector3f pos) {
+        setLocalTranslation(pos);
+        effect.emitAllParticles();
+    }
+    
     private void initEffect(AssetManager manager) {
     
         int COUNT_FACTOR = 1;

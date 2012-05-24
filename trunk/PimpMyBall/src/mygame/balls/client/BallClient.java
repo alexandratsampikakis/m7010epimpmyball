@@ -306,6 +306,9 @@ public class BallClient extends SimpleApplication {
     }
 
     public void removeUser(User lostUser) {
+        
+        fireworks.explosionAtPosition(lostUser.getBall().getPosition());
+        
         users.removeValue(lostUser);
         rootNode.detachChild(lostUser.getBlingNode());
         viewLevel.detachChild(lostUser.getGeometry());
