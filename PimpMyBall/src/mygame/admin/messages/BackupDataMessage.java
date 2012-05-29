@@ -24,4 +24,10 @@ public class BackupDataMessage extends AbstractMessage {
     public BackupDataMessage(ArrayList<UserData> data) {
         this.data = data;
     }
+    
+    public BackupDataMessage(UserData ud) {
+        ArrayList<UserData> list = new ArrayList<UserData>();
+        list.add(ud);
+        this.data = list;
+    }
 }

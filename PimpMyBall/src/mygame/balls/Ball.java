@@ -86,5 +86,10 @@ public class Ball extends RigidBodyControl {
         adjustmentVector = adjustmentVector.mult(0.1f);
         Vector3f newPosition = getPosition().add(adjustmentVector);
         setPosition(newPosition);
+        
+        /*Vector3f adjustVel = adjustor.getVelocity().subtract(getVelocity());
+        adjustVel = adjustVel.mult(0.1f);
+        Vector3f newVelocity = getVelocity().add(adjustVel);*/
+        setVelocity(adjustor.getVelocity());
     }
 }

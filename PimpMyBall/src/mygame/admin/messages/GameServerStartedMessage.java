@@ -16,8 +16,8 @@ import mygame.admin.ServerInfo;
 public class GameServerStartedMessage extends AbstractMessage {
     
     public ServerInfo serverInfo;
-            
-    public GameServerStartedMessage() {    
+    
+    public GameServerStartedMessage() {
     }
     
     public GameServerStartedMessage(ServerInfo serverInfo) {

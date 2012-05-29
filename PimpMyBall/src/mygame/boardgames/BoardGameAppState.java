@@ -5,94 +5,290 @@
 package mygame.boardgames;
 
 import com.jme3.app.Application;
-import mygame.boardgames.network.GomokuServer;
-import mygame.boardgames.network.GomokuMessage;
-import mygame.boardgames.network.NewGameMessage;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.GomokuGrid;
-import mygame.boardgames.gomoku.WinningRow;
-import com.jme3.app.SimpleApplication;
 import com.jme3.app.state.AbstractAppState;
-import com.jme3.app.state.AppState;
 import com.jme3.app.state.AppStateManager;
 import com.jme3.asset.AssetManager;
 import com.jme3.collision.CollisionResult;
-import com.jme3.collision.MotionAllowedListener;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.input.FlyByCamera;
 import com.jme3.input.InputManager;
-import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
-import com.jme3.input.RawInputListener;
 import com.jme3.input.controls.ActionListener;
-import com.jme3.input.controls.KeyTrigger;
 import com.jme3.input.controls.MouseButtonTrigger;
-import com.jme3.input.event.JoyAxisEvent;
-import com.jme3.input.event.JoyButtonEvent;
-import com.jme3.input.event.KeyInputEvent;
-import com.jme3.input.event.MouseButtonEvent;
-import com.jme3.input.event.MouseMotionEvent;
-import com.jme3.input.event.TouchEvent;
-import com.jme3.light.AmbientLight;
-import com.jme3.light.DirectionalLight;
 import com.jme3.math.ColorRGBA;
-import com.jme3.math.FastMath;
-import com.jme3.math.Matrix3f;
-import com.jme3.math.Quaternion;
-import com.jme3.math.Ray;
-import com.jme3.math.Vector2f;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
-import com.jme3.network.Network;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
-import com.jme3.system.AppSettings;
-import com.jme3.texture.Texture;
-import com.jme3.texture.Texture2D;
-import com.jme3.ui.Picture;
-import java.awt.Component;
-import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.Callable;
-import javax.swing.JOptionPane;
+import mygame.admin.ChatMessage;
 import mygame.balls.UserData;
 import mygame.balls.client.BallClient;
 import mygame.balls.client.User;
-import mygame.boardgames.GomokuGame;
-import mygame.boardgames.GridPoint;
+import mygame.util.GridPoint;
 
-import mygame.boardgames.Select3D;
-import mygame.boardgames.gomoku.GomokuBoard3D;
-import mygame.boardgames.gomoku.player.GomokuPlayer;
-import mygame.boardgames.gomoku.player.LocalPlayer;
-import mygame.boardgames.gomoku.player.RemotePlayerClient;
-import mygame.boardgames.gomoku.player.RemotePlayerServer;
-import mygame.boardgames.network.GomokuClient;
-import mygame.boardgames.network.broadcast.GomokuStartMessage;
+import mygame.util.Select3D;
+import mygame.boardgames.network.GomokuDrawMessage;
+import mygame.boardgames.network.GomokuEndMessage;
+import mygame.boardgames.network.GomokuStartMessage;
+import mygame.boardgames.network.GomokuUpdateMessage;
 
 
 /**
  *
  * @author Jimmy
  */
-public class BoardGameAppState extends AbstractAppState implements ActionListener {
+public class BoardGameAppState extends AbstractAppState {
 
-    private static boolean USE_CURSOR = false;
-    
-    private GomokuBoard3D board;
-    private GomokuGame game;
-   
     private BallClient app;
-    private NewGameMessage msg;
     private Client client;
-   
+    
+    private GomokuGame currentGame;
+    private CellColor myColor = CellColor.NONE;
+    
+    private HashMap<Integer, GomokuBoard3D> currentGames =
+            new HashMap<Integer, GomokuBoard3D>();
+    
+    private static float ANIMATION_TIME = 3f;
+    private float animationTime = 0f;
+    private boolean animateCamera = false;
+    private Vector3f cameraStart, cameraDest;
+    private Vector3f lookAtStart, lookAtDest;
+    
+    public BoardGameAppState(BallClient app, Client client) {
+        
+        this.app = app;
+        this.client = client;
+
+        client.addMessageListener(new GomokuMessageListener(),
+                GomokuStartMessage.class,
+                GomokuEndMessage.class,
+                GomokuUpdateMessage.class);
+    }
+    
+    @Override
+    public void initialize(AppStateManager stateManager, Application app) {
+        super.initialize(stateManager, app);  
+        app.getInputManager().addMapping("click", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
+        app.getInputManager().addListener(actionListener, "click");
+    }
+    
+    public GomokuGame startNewGame(GomokuStartMessage msg) {
+        
+        // Create a new game as specified by the message
+        GomokuGame newGame = new GomokuGame(msg);
+        GomokuBoard3D newBoard = new GomokuBoard3D(app.getAssetManager(), newGame);
+        User player = app.getPlayer();
+        long pid = player.getId();
+        
+        boolean myTurn = msg.firstPlayerID == pid;
+        
+        // If the local player is involved in the game,
+        // start a camera animation towards the board
+        if (myTurn || msg.secondPlayerID == pid) {
+            
+            app.getChaseCamera().setEnabled(false);
+            initControls();
+            
+            Vector3f myPos, oppPos;
+            
+            if (myTurn) {
+                myColor = msg.startingColor;
+                myPos = msg.firstPlayerPos;
+                oppPos = msg.secondPlayerPos;
+                setText("Game started, your turn.", msg.startingColor.getColorRGBA());
+            } else {
+                myColor = msg.startingColor.opponent();
+                oppPos = msg.firstPlayerPos;
+                myPos = msg.secondPlayerPos;
+                setText("Game started, waiting for opponent", msg.startingColor.getColorRGBA());
+            }
+            
+            Vector3f fromTo = oppPos.add(myPos.negate()).mult(0.5f);
+            Vector3f boardPos = myPos.add(fromTo).add(0, 5, 0);
+            Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 4, 0);
+            
+            animationTime = ANIMATION_TIME;
+            animateCamera = true;
+        
+            cameraStart = app.getCamera().getLocation().clone();
+            cameraDest = cameraPos;
+
+            lookAtStart = myPos.clone();
+            lookAtDest = boardPos.clone();
+        
+            currentGame = newGame;
+            currentGame.addListener(localGameListener);
+            
+        }
+        
+        newBoard.positionBetween(msg.firstPlayerPos, msg.secondPlayerPos);
+        currentGames.put(newGame.getID(), newBoard);
+        app.getRootNode().attachChild(newBoard);
+        
+        return currentGame;
+    }
+    
+    private void endGame(int gameID) {
+        
+        GomokuBoard3D board = currentGames.get(gameID);
+        
+        if (gameID == currentGame.getID()) {                 
+            app.chasePlayer();
+            app.getGuiNode().detachChildNamed("CrossHairs");
+            app.getGuiNode().detachChildNamed("DisplayText");
+            
+            currentGame.removeListener(localGameListener);
+            currentGame = null;    
+        }
+        
+        app.getRootNode().detachChild(board);
+        app.showFireworks(board.getLocalTranslation());
+    }
+            
+    private class GomokuMessageListener implements MessageListener<Client> {
+
+        public void messageReceived(Client source, Message message) {
+            app.enqueue(new GomokuMessageReceiver(message));
+        }
+    }
+
+    private class GomokuMessageReceiver implements Callable {
+
+        Message message;
+
+        public GomokuMessageReceiver(Message message) {
+            this.message = message;
+        }
+
+        public Object call() {
+
+            if (message instanceof GomokuEndMessage) {
+                GomokuEndMessage gem = (GomokuEndMessage) message;
+                
+                if (gem.getGameID() == currentGame.getID()) {   
+                    long pid = app.getPlayer().getId();
+                    if (gem.winnerID == pid) {
+                        client.send(new ChatMessage("I win, +" + gem.scoreChange, pid)); 
+                    } else {
+                        client.send(new ChatMessage("I lose, -" + gem.scoreChange, pid)); 
+                    }
+                }
+                endGame(gem.getGameID());
+                unfreezePlayers(gem.winnerID, gem.loserID);
+                app.getUser(gem.winnerID).updateScore(gem.scoreChange);
+                app.getUser(gem.loserID).updateScore(-gem.scoreChange);
+                
+            } else if (message instanceof GomokuStartMessage) {
+                GomokuStartMessage gsm = (GomokuStartMessage) message;
+                startNewGame(gsm);
+                freezePlayers(gsm.firstPlayerID, gsm.firstPlayerPos,
+                        gsm.secondPlayerID, gsm.secondPlayerPos);
+
+            } else if (message instanceof GomokuUpdateMessage) {
+                GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
+
+                if (gum.getGameID() == currentGame.getID()) {
+                    currentGame.tryMove(gum.playerID, gum.p);
+                } else {
+                    GomokuBoard3D board = currentGames.get(gum.getGameID());
+                    if (board != null) {
+                        board.setColor(gum.p, gum.color);
+                    }
+                }
+
+            } else if (message instanceof GomokuDrawMessage) {
+                GomokuDrawMessage gdm = (GomokuDrawMessage) message;
+                
+                if (gdm.getGameID() == currentGame.getID()) {
+                    long pid = app.getPlayer().getId();
+                    client.send(new ChatMessage("Draw...", pid));
+                }
+                endGame(gdm.getGameID());
+                unfreezePlayers(gdm.id1, gdm.id2);
+                
+            } else {
+                System.err.println("Received odd message:" + message);
+            }
+
+            return message;
+        }
+    }
+
+    public void freezePlayers(long firstID, Vector3f firstPos,
+            long secondID, Vector3f secondPos) {
+        app.getUser(firstID).setFrozen(firstPos);
+        app.getUser(secondID).setFrozen(secondPos);
+    }
+    public void unfreezePlayers(long firstID, long secondID) {
+        app.getUser(firstID).setFrozen(false);
+        app.getUser(secondID).setFrozen(false);
+    }
+    
+    @Override
+    public void update(float tpf) {
+        
+        if (animateCamera) {
+            if (animationTime > 0) {
+
+                Camera cam = app.getCamera();
+                
+                float percent = 1f - animationTime / ANIMATION_TIME;
+                // Vector3f temp;
+                // temp = cameraStart.clone();
+                cam.setLocation(cameraStart.interpolate(cameraDest, percent));
+                // cameraStart = temp;
+                // temp = lookAtStart.clone();
+                cam.lookAt(lookAtStart.interpolate(lookAtDest, percent), Vector3f.UNIT_Y);
+                // lookAtStart = temp;
+
+                animationTime -= tpf;
+                
+            } else {
+                app.getFlyByCamera().setEnabled(true);
+                app.getFlyByCamera().setMoveSpeed(0);
+                animateCamera = false;
+            }
+        }
+        
+        for (GomokuBoard3D b : currentGames.values()) {
+            b.animate(tpf);
+        }
+    }
+    
+    @Override
+    public void render(RenderManager rm) {}
+
+    /** Create crosshairs or cursor */
+    private void initControls() {
+        
+        FlyByCamera flyCam = app.getFlyByCamera();
+        AssetManager assetManager = app.getAssetManager();
+        Node guiNode = app.getGuiNode(); 
+        flyCam.setMoveSpeed(0f);
+        
+        BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
+        BitmapText ch = new BitmapText(guiFont, false);
+        int size = guiFont.getCharSet().getRenderedSize();
+        ch.setName("CrossHairs");
+        ch.setSize(size);
+        ch.setText("+");        // fake crosshairs :)
+        ch.setLocalTranslation( // center
+                    app.getCamera().getWidth() / 2 - size / 3 * 2,
+                    app.getCamera().getHeight() / 2 + ch.getLineHeight() / 2, 0);
+        guiNode.attachChild(ch);
+    }
+    
     private void setText(String text) {
         setText(text, ColorRGBA.White);
     }
+    
     private void setText(String text, ColorRGBA color) {
         Node guiNode = app.getGuiNode();
         AssetManager assetManager = app.getAssetManager();
@@ -116,289 +312,48 @@ public class BoardGameAppState extends AbstractAppState implements ActionListene
         }
     }
     
-    
-    private GomokuPlayer remotePlayer = null;
-    private GomokuPlayer localPlayer = new GomokuPlayer() {
-        @Override
-        public void onOpponentMove(GridPoint p) {
-            setText("Your turn! ", localPlayer.getColor().getColorRGBA());
+    private GomokuGame.Listener localGameListener = new GomokuGame.Listener() {
+        public void onMove(GomokuGame game, CellColor color, GridPoint p) {
+            if (color == myColor) {
+                client.send(new GomokuUpdateMessage(game, color, p));
+                setText("Waiting for opponent. ", color.getColorRGBA());
+            } else {
+                setText("Your turn! ", color.getColorRGBA());
+            }
+            
         }
-        @Override
-        public void onStartGame(boolean myTurn) {
-            if (myTurn)
-                setText("Game started, your turn.", localPlayer.getColor().getColorRGBA());
-            else
-                setText("Game started, waiting for opponent", remotePlayer.getColor().getColorRGBA());
+        public void onWin(GomokuGame game, WinningRow wr) {
         }
-        @Override
-        public void onGameWon(CellColor winningColor) {
-            app.showFireworks(board.getLocalTranslation());
-            // setText(((color == winningColor) ? "You win!" : "You lose, haha..."), winningColor.getColorRGBA());
+        public void onReset(GomokuGame game) {
+            throw new UnsupportedOperationException("Not supported yet.");
         }
-        @Override
-        public void onOpponentSurrender() {
-            // setText("Opponent surrendered, you win!");
+        public void onDraw(GomokuGame game) {
         }
     };
     
-    
-    public BoardGameAppState(BallClient app, Client client) {
-        super();
-        
-        this.app = app;
-        this.client = client;
-        
-        client.addMessageListener(new MessageListener<Client>() {
-            public void messageReceived(Client source, Message m) {
-                BoardGameAppState.this.app.enqueue(new MessageParser(m));
-            }
-        }, GomokuMessage.class);
-        
-        // Create the remote player
-        remotePlayer = new RemotePlayerClient(client);
-    }
-    
-    @Override
-    public void initialize(AppStateManager stateManager, Application app) {
-        super.initialize(stateManager, app);
-        
-        InputManager inputManager = app.getInputManager();
-        
-        // Mouse
-        inputManager.addMapping("click", new MouseButtonTrigger(MouseInput.BUTTON_LEFT));
-        inputManager.addListener(this, "click");
-        
-        initControls();
-        
-        System.out.println("Initializing " + this);
-    }
-   
-    @Override
-    public void stateAttached(AppStateManager stateManager) {
-        super.stateAttached(stateManager);
+    private ActionListener actionListener = new ActionListener() {
+        public void onAction(String name, boolean isPressed, float tpf) {
 
-        app.getChaseCamera().setEnabled(false);
+            if (!isEnabled())
+                return;
 
-        System.out.println("Attached " + this + ".");
-    }
-
-    @Override
-    public void stateDetached(AppStateManager stateManager) {
-        super.stateDetached(stateManager);
-        
-        app.chasePlayer();
-        app.getGuiNode().detachChildNamed("CrossHairs");
-        app.getGuiNode().detachChildNamed("DisplayText");
-        app.getRootNode().detachChild(board);
-        
-        System.out.println("Detached " + this + ".");
-    }
-    
-    
-    private static float ANIMATION_TIME = 5f;
-    
-    private float animationTime = 0f;
-    private boolean animateCamera = false;
-    private Vector3f cameraStart, cameraDest;
-    private Vector3f boardStart, boardDest;
-    private Vector3f lookAtStart, lookAtDest;
-    
-    public GomokuGame startNewGame(GomokuStartMessage msg) {
-        
-        // Create a new game as specified by the message
-        game = new GomokuGame(msg);
-        
-        User player = app.getPlayer();
-        UserData playerData = player.getUserData();
-        
-        // Add players to the game, in correct order
-        if (msg.firstPlayerID == playerData.id) {
-            game.setPlayers(localPlayer, remotePlayer);
-        } else {
-            game.setPlayers(remotePlayer, localPlayer);
-        }
-        
-        Vector3f myPos = (msg.firstPlayerID == player.getId()) ?
-                msg.firstPlayerPos : msg.secondPlayerPos;
-        Vector3f oppPos = (msg.firstPlayerID == player.getId()) ?
-                msg.secondPlayerPos : msg.firstPlayerPos;
-        
-        Vector3f fromTo = oppPos.add(myPos.negate()).mult(0.5f);
-        Vector3f boardPos = myPos.add(fromTo).add(0, 5, 0);
-        Vector3f cameraPos = myPos.add(fromTo.negate().mult(1.5f)).add(0, 4, 0);
-                // add(0, 3, 0); // 
-        
-        animationTime = ANIMATION_TIME;
-        animateCamera = true;
-        
-        cameraStart = app.getCamera().getLocation().clone();
-        cameraDest = cameraPos;
-        
-        boardStart = boardPos.add(0, -10, 0);
-        boardDest = boardPos;
-        
-        lookAtStart = cameraStart.add(app.getCamera().getDirection());
-        lookAtDest = boardDest.clone();
-
-        // Create a 3D model of the board
-        fromTo.y = 0;
-        Quaternion q = new Quaternion();
-        q.lookAt(fromTo.normalize(), Vector3f.UNIT_Y);
-        
-        board = new GomokuBoard3D(app.getAssetManager(), game);
-        board.setLocalRotation(q);
-                // app.getCamera().getRotation());
-        board.setLocalTranslation(boardPos.add(0, -10, 0));
-        board.setLocalScale(0.25f);
-       
-        app.getRootNode().attachChild(board);
-        
-        // Start the game
-        game.start();
-        
-        return game;
-    }
-
-    @Override
-    public void update(float tpf) {
-        
-        if (animateCamera) {
-            
-            if (animationTime > 0) {
-
-                Camera cam = app.getCamera();
-
-                float percent = 1f - animationTime / ANIMATION_TIME;
- 
-                System.out.println(tpf);
- 
-                // Vector3f temp;
+            if (!isPressed) { // key was released
                 
-                // temp = cameraStart.clone();
-                cam.setLocation(cameraStart.interpolate(cameraDest, percent));
-                // cameraStart = temp;
-                
-                // temp = lookAtStart.clone();
-                cam.lookAt(lookAtStart.interpolate(lookAtDest, percent), Vector3f.UNIT_Y);
-                // lookAtStart = temp;
-                
-                // temp = boardStart.clone();
-                board.setLocalTranslation(boardStart.interpolate(boardDest, percent));
-                // boardStart = temp;
-                
-                animationTime -= tpf;
-                
-            } else {
+                if (name.equals("click") && currentGame != null) {
 
-                app.getFlyByCamera().setEnabled(true);
-                app.getFlyByCamera().setMoveSpeed(0);
-                animateCamera = false;
-            }
-        }
-    }
-    
-    @Override
-    public void render(RenderManager rm) {}
+                    // Find the position on the board that was clicked
+                    GomokuBoard3D currentBoard = currentGames.get(currentGame.getID());
+                    CollisionResult closest = Select3D.select(app.getCamera(), currentBoard);
 
-    public void onAction(String name, boolean isPressed, float tpf) {
-
-        if (!isPressed) { // key was released
-            if (name.equals("click")) {
-                // Find the position on the board that was clicked
-                CollisionResult closest;
-
-                if (USE_CURSOR) {
-                    Vector2f click2d = app.getInputManager().getCursorPosition();
-                    closest = Select3D.select(click2d, app.getCamera(), board);
-                } else {
-                    closest = Select3D.select(app.getCamera(), board);
-                }
-
-                if (closest != null) {
-                    
-                    GridPoint p = closest.getGeometry().getUserData("pos");
-                    
-                    if (p != null && game.tryMove(localPlayer, p)) {
-                        setText("Waiting for opponent. ", remotePlayer.getColor().getColorRGBA());
+                    if (closest != null) {
+                        GridPoint p = closest.getGeometry().getUserData("pos");
+                        if (p != null) {
+                            currentGame.tryMove(app.getPlayer().getId(), p);
+                        }
                     }
                 }
             }
         }
-    }
-    
-    /** Create crosshairs or cursor */
-    private void initControls() {
-        
-        FlyByCamera flyCam = app.getFlyByCamera();
-        AssetManager assetManager = app.getAssetManager();
-        Node guiNode = app.getGuiNode(); 
-        InputManager inputManager = app.getInputManager();
-        
-        if (USE_CURSOR) {
-            
-            flyCam.setEnabled(false);
-            
-            Texture tex = assetManager.loadTexture("Interface/Logo/Cursor.png");
-            cursor = new Picture("cursor");
-            cursor.setTexture(assetManager, (Texture2D) tex, true);
-            cursor.setWidth(64);
-            cursor.setHeight(64);
-            app.getGuiNode().attachChild(cursor);
-
-            inputManager.addRawInputListener(inputListener);
-            inputManager.setCursorVisible(false);
-            
-        } else {
-            
-            flyCam.setMoveSpeed(0f);
-            
-            BitmapFont guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
-            BitmapText ch = new BitmapText(guiFont, false);
-            int size = guiFont.getCharSet().getRenderedSize();
-            ch.setName("CrossHairs");
-            ch.setSize(size);
-            ch.setText("+");        // fake crosshairs :)
-            ch.setLocalTranslation( // center
-                    app.getCamera().getWidth() / 2 - size / 3 * 2,
-                    app.getCamera().getHeight() / 2 + ch.getLineHeight() / 2, 0);
-            guiNode.attachChild(ch);
-        }
-    }
-    
-    private Picture cursor;
-    private RawInputListener inputListener = new RawInputListener() {
-        public void beginInput() {}
-        public void endInput() {}
-        public void onJoyAxisEvent(JoyAxisEvent evt) {}
-        public void onJoyButtonEvent(JoyButtonEvent evt) {}
-        public void onMouseMotionEvent(MouseMotionEvent evt) { 
-            // Prevent mouse from leaving screen
-            float x = FastMath.clamp(evt.getX(), 0, app.getCamera().getWidth());
-            float y = FastMath.clamp(evt.getY(), 0, app.getCamera().getHeight());
-            // Adjust for hotspot
-            cursor.setPosition(x, y - 64);
-        }
-        public void onMouseButtonEvent(MouseButtonEvent evt) {}
-        public void onKeyEvent(KeyInputEvent evt) {}
-        public void onTouchEvent(TouchEvent evt) {}
     };
-
-    
-    private class MessageParser implements Callable {
-        
-        private Message msg;
-        
-        public MessageParser(Message msg) {
-            this.msg = msg;
-        }
-        
-        @Override
-        public Object call() throws Exception {
-            if (msg instanceof GomokuMessage) {
-                game.tryMove(remotePlayer, ((GomokuMessage) msg).p);
-            }
-            return msg;
-        }
-    }
     
 }

@@ -1,5 +1,5 @@
 
-package mygame.boardgames;
+package mygame.util;
 
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;

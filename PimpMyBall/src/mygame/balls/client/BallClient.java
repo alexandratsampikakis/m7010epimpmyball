@@ -7,32 +7,19 @@ import mygame.balls.messages.BallUpdateMessage;
 import com.jme3.app.SimpleApplication;
 import com.jme3.audio.AudioNode;
 import com.jme3.bullet.BulletAppState;
-import com.jme3.font.BitmapText;
 import com.jme3.input.ChaseCamera;
 import com.jme3.input.KeyInput;
-import com.jme3.input.RawInputListener;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.KeyTrigger;
-import com.jme3.input.event.JoyAxisEvent;
-import com.jme3.input.event.JoyButtonEvent;
-import com.jme3.input.event.KeyInputEvent;
-import com.jme3.input.event.MouseButtonEvent;
-import com.jme3.input.event.MouseMotionEvent;
-import com.jme3.input.event.TouchEvent;
-import com.jme3.math.ColorRGBA;
 import com.jme3.math.Vector3f;
 import com.jme3.network.Client;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
-import com.jme3.renderer.Camera;
 import com.jme3.renderer.queue.RenderQueue.ShadowMode;
 import com.jme3.scene.Geometry;
-import com.jme3.shadow.BasicShadowRenderer;
 import com.jme3.shadow.PssmShadowRenderer;
-import com.jme3.shadow.ShadowUtil;
 import java.awt.Component;
 import java.util.ArrayList;
-//import java.util.Timer.jme.util.Timer;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import javax.swing.JOptionPane;
@@ -40,6 +27,7 @@ import mygame.Fireworks;
 import mygame.Settings;
 import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
+import mygame.admin.Config;
 import mygame.admin.messages.LoginMessage;
 import mygame.admin.messages.LoginSuccessMessage;
 import mygame.admin.NetworkHelper;
@@ -58,66 +46,61 @@ import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.UserAddedMessage;
 import mygame.boardgames.BoardGameAppState;
 import mygame.boardgames.GomokuGame;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.GomokuBoard3D;
-import mygame.boardgames.network.broadcast.GomokuEndMessage;
-import mygame.boardgames.network.broadcast.GomokuStartMessage;
-import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
+import mygame.boardgames.GomokuBoard3D;
+import mygame.boardgames.network.GomokuEndMessage;
+import mygame.boardgames.network.GomokuStartMessage;
+import mygame.boardgames.network.GomokuUpdateMessage;
 import mygame.util.BiMap;
 
-public class BallClient extends SimpleApplication {
+public class BallClient extends SimpleApplication implements ChatDelegate {
 
-    private float timeCounter = 0f;
     private Client client;
-    private BasicShadowRenderer bsr;
-    private Vector3f[] points;
-    protected BulletAppState viewAppState, ghostAppState;
+    
+    private BulletAppState viewAppState, ghostAppState;
+    private BoardGameAppState bgas;
+    private ChatControl chatControl;
+    
     private BiMap<Long, User> users = new BiMap<Long, User>();
     private User playerUser;
+   
     private Vector3f currentDirection = Vector3f.ZERO;
-    private Vector3f lastSentDirection = Vector3f.ZERO;
-    private boolean left = false,
-            right = false,
-            up = false,
-            down = false;
+    private Vector3f currentVelocity = Vector3f.ZERO;
+    private Vector3f lastSentVelocity = Vector3f.ZERO;
+    
+    private boolean left = false, right = false, up = false, down = false;
     private TestLevel viewLevel, ghostLevel;
     private ChaseCamera chaseCamera = null;
+    private Fireworks fireworks;
+    
     // Timer variables
+    private float timeCounter = 0f;
     private final double smallAngle = Math.toRadians(5d); // 5 degrees in radians
     private final double shortUpdateTime = 0.1d;
     private final double longUpdateTime = 5 * shortUpdateTime;
     private double updateTime = longUpdateTime;
-    private int currentGameId = -1;
-    private HashMap<Integer, GomokuBoard3D> currentGames =
-            new HashMap<Integer, GomokuBoard3D>();
-    
-    //-----------------------------------
-    //--Test Code
-    //-----------------------------------
-    private UserData playerUserData;
-    static Client centralServerClient;
-    static CentralServerListener centralServerListener;
-    private int secret;
-    private BoardGameAppState bgas;
 
+    private UserData playerUserData;
+    private static Client centralServerClient;
+    private static CentralServerListener centralServerListener;
+    private static final String LOCK = "lock..";
+    
+    private int secret;
+
+    private PssmShadowRenderer pssmRenderer;
+    private boolean usesShadows = true;
+    
+    
     public static void main(String[] args) throws IOException, InterruptedException {
+        
         SerializerHelper.initializeClasses();
         String userName = getString(null, "Login Info", "Enter username:", "nicke");
         String passWord = getString(null, "Login Info", "Enter Password:", "kass");
 
-        ServerInfo centralServerInfo = CentralServer.info;
-        centralServerClient = NetworkHelper.connectToServer(centralServerInfo);
-
-        //centralServerClient.addMessageListener(new CentralServerListener());
         centralServerListener = new CentralServerListener();
+        centralServerClient = NetworkHelper.connectToServer(Config.getCentralServerInfo());
         centralServerClient.addMessageListener(centralServerListener);
         centralServerClient.start();
         centralServerClient.send(new LoginMessage(userName, passWord));
-
-        String stop = "STOOOP!";
-        synchronized (stop) {
-            stop.wait();
-        }
     }
 
     private static class CentralServerListener implements MessageListener<Client> {
@@ -128,6 +111,7 @@ public class BallClient extends SimpleApplication {
 
                 LoginSuccessMessage loginMessage = (LoginSuccessMessage) message;
                 BallClient app;
+                
                 try {
                     System.out.println("ServerInfo.NAME: " + loginMessage.serverInfo.NAME);
                     System.out.println("UserData.userName: " + loginMessage.userData.userName);
@@ -145,28 +129,16 @@ public class BallClient extends SimpleApplication {
 
     public static String getString(Component owner, String title, String message, String initialValue) {
         return (String) JOptionPane.showInputDialog(
-                owner, message, title,
-                JOptionPane.PLAIN_MESSAGE,
-                null, null, initialValue);
+                owner, message, title, JOptionPane.PLAIN_MESSAGE, null, null, initialValue);
     }
 
-    //-----------------------------------
-    //--End of test code
-    //-----------------------------------
     public BallClient(ServerInfo serverInfo, UserData userData, int secret) throws Exception {
-
         client = NetworkHelper.connectToServer(serverInfo);
         client.start();
-
-        bgas = new BoardGameAppState(this, client);
-
         this.playerUserData = userData;
         this.secret = secret;
     }
 
-    
-    private Fireworks fireworks;
-    
     @Override
     public void simpleInitApp() {
 
@@ -177,18 +149,13 @@ public class BallClient extends SimpleApplication {
                 ConnectedUsersMessage.class,
                 UserLeftServerMessage.class);
 
-        client.addMessageListener(new GomokuMessageListener(),
-                GomokuStartMessage.class,
-                GomokuEndMessage.class,
-                GomokuUpdateMessage.class);
-
         client.send(new HelloMessage(secret, playerUserData.id));
 
         initAppStates();
         initKeys();
         initShadow();
         initLevel();
-        setupChat();
+        
         setupUser(playerUserData);
 
         fireworks = new Fireworks(assetManager);
@@ -198,124 +165,8 @@ public class BallClient extends SimpleApplication {
         playerUser.makeBlue(assetManager);
         setCameraTarget(playerUser.getGeometry());
 
-        client.addMessageListener(new MessageListener<Client>() {
-
-            public void messageReceived(Client source, Message m) {
-                BallClient.this.enqueue(new ChatCallable((ChatMessage) m));
-                System.out.println("Received chat message. " + ((ChatMessage) m).getText());
-            }
-        }, ChatMessage.class);
-
         this.setDisplayFps(false);
         this.setDisplayStatView(false);
-    }
-
-    private class ChatCallable implements Callable {
-
-        String text;
-        long senderId;
-
-        public ChatCallable(ChatMessage m) {
-            text = m.getText();
-            senderId = m.getSenderId();
-        }
-
-        public Object call() throws Exception {
-            User user = users.getValue(senderId);
-            user.showChatMessage(text);
-            return null;
-        }
-    }
-
-    private void sendBallDirectionMessage() {
-        long playerId = playerUser.getId();
-        Ball playerBall = playerUser.getBall();
-        Vector3f playerDirection = playerBall.getDirection();
-        BallDirectionMessage bdMessage = new BallDirectionMessage(playerId, playerDirection);
-        client.send(bdMessage);
-    }
-
-    public void performUpdate(BallUpdate ballUpdate) {
-        User user = users.getValue(ballUpdate.id);
-        if (user != null) {
-            Ball ghost = user.getGhost();
-            ghost.setPosition(ballUpdate.position);
-            ghost.setVelocity(ballUpdate.velocity);
-            ghost.setDirection(ballUpdate.direction);
-        }
-    }
-
-    private class BallServerListener implements MessageListener<Client> {
-
-        public void messageReceived(Client source, Message message) {
-            BallClient.this.enqueue(new MessageReceiver(message));
-        }
-    }
-
-    private class MessageReceiver implements Callable {
-
-        Message message;
-
-        public MessageReceiver(Message message) {
-            this.message = message;
-        }
-
-        public Object call() {
-            if (message instanceof BallUpdateMessage) {
-                BallUpdateMessage buMessage = (BallUpdateMessage) message;
-                performUpdate(buMessage.ballUpdate);
-                // System.out.print("Received message " + buMessage.position);
-                // System.out.println("    Received update: " + buMessage.ballUpdate);
-                // System.out.println();
-
-            } else if (message instanceof AggregateBallUpdatesMessage) {
-                AggregateBallUpdatesMessage abuMessage = (AggregateBallUpdatesMessage) message;
-                // System.out.println("Received aggregate update: " + abuMessage);
-                // System.out.println();
-                for (BallUpdate ballUpdate : abuMessage.ballUpdates) {
-                    performUpdate(ballUpdate);
-                }
-
-            } else if (message instanceof UserAddedMessage) {
-                UserAddedMessage uaMessage = (UserAddedMessage) message;
-                // System.out.println("Adding user " + uaMessage.userData.userName);
-                setupUser(uaMessage.userData);
-
-            } else if (message instanceof ConnectedUsersMessage) {
-                ConnectedUsersMessage cuMessage = (ConnectedUsersMessage) message;
-                ArrayList<UserData> userDataList = cuMessage.userDataList;
-                for (UserData userData : userDataList) {
-                    setupUser(userData);
-                    // System.out.println("Connected user: " + userData.userName);
-                }
-            } else if (message instanceof UserLeftServerMessage) {
-                UserLeftServerMessage ulsMessage = (UserLeftServerMessage) message;
-                long userId = ulsMessage.userId;
-                removeUser(users.getValue(userId));
-
-            } else if (message instanceof LogoutMessage) {
-                LogoutMessage lMessage = (LogoutMessage) message;
-                long userId = lMessage.userId;
-                removeUser(users.getValue(userId));
-
-            } else {
-
-                System.err.println("Received odd message:" + message);
-            }
-            return message;
-        }
-    }
-
-    public void removeUser(User lostUser) {
-        
-        fireworks.explosionAtPosition(lostUser.getBall().getPosition());
-        
-        users.removeValue(lostUser);
-        rootNode.detachChild(lostUser.getBlingNode());
-        viewLevel.detachChild(lostUser.getGeometry());
-        ghostLevel.detachChild(lostUser.getGeometry());
-        viewAppState.getPhysicsSpace().remove(lostUser.getBall());
-        ghostAppState.getPhysicsSpace().remove(lostUser.getBall());
     }
 
     @Override
@@ -327,8 +178,8 @@ public class BallClient extends SimpleApplication {
 
         currentDirection = new Vector3f(0, 0, 0);
         Ball playerBall = playerUser.getBall();
-
-        if (!stateManager.hasState(bgas)) {
+        
+        if (playerBall.getMass() > 0) {
 
             Vector3f camDir = cam.getDirection().clone();
             Vector3f camLeft = cam.getLeft().clone();
@@ -356,17 +207,17 @@ public class BallClient extends SimpleApplication {
         for (User user : users.getValues()) {
             user.update();
         }
+        
+        currentVelocity = playerBall.getVelocity();
 
         // Send direction to server on a fixed interval
         renewUpdateTime();
         if (timeCounter > updateTime) {
             // Reset to long update time
-            // System.out.println("Update time: " + updateTime);
             sendBallDirectionMessage();
-            lastSentDirection = currentDirection;
+            lastSentVelocity = currentVelocity;
             timeCounter = 0f;
             updateTime = longUpdateTime;
-            // System.out.println();
         }
         timeCounter += tpf;
     }
@@ -375,15 +226,15 @@ public class BallClient extends SimpleApplication {
 
         double newUpdateTime;
         // If current direction is zero:
-        if (currentDirection.equals(Vector3f.ZERO)) {
+        if (currentVelocity.equals(Vector3f.ZERO)) {
             // If zero was just pressed, time to start updating!
-            if (lastSentDirection.equals(currentDirection)) {
+            if (lastSentVelocity.equals(currentVelocity)) {
                 newUpdateTime = shortUpdateTime;
             } else {
                 newUpdateTime = longUpdateTime;
             }
         } else {
-            if (currentDirection.angleBetween(lastSentDirection) < smallAngle) {
+            if (currentVelocity.angleBetween(lastSentVelocity) < smallAngle) {
                 newUpdateTime = longUpdateTime;
             } else {
                 newUpdateTime = shortUpdateTime;
@@ -393,34 +244,83 @@ public class BallClient extends SimpleApplication {
             updateTime = newUpdateTime;
         }
     }
-    private ActionListener actionListener = new ActionListener() {
-
-        public void onAction(String binding, boolean isPressed, float tpf) {
-
-            if (isEnteringChat) {
-                return;
-            }
-
-            if (binding.equals("CharLeft")) {
-                left = isPressed;
-            } else if (binding.equals("CharRight")) {
-                right = isPressed;
-            } else if (binding.equals("CharForward")) {
-                up = isPressed;
-            } else if (binding.equals("CharBackward")) {
-                down = isPressed;
-            } else if (!isPressed && binding.equals("Shadow")) {
-                if (usesShadows) {
-                    viewPort.removeProcessor(pssmRenderer);
-                } else {
-                    viewPort.addProcessor(pssmRenderer);
-                }
-                usesShadows = !usesShadows;
-            }
-        }
-    };
-    private boolean usesShadows = true;
     
+    @Override
+    public void destroy() {
+        client.close();
+        super.destroy();
+    }
+    
+    private void sendBallDirectionMessage() {
+        long playerId = playerUser.getId();
+        Ball playerBall = playerUser.getBall();
+        Vector3f playerDirection = playerBall.getDirection();
+        BallDirectionMessage bdMessage = new BallDirectionMessage(playerId, playerDirection);
+        client.send(bdMessage);
+    }
+
+    public void performUpdate(BallUpdate ballUpdate) {
+        User user = users.getValue(ballUpdate.id);
+        if (user != null) {
+            Ball ghost = user.getGhost();
+            ghost.setPosition(ballUpdate.position);
+            ghost.setVelocity(ballUpdate.velocity);
+            ghost.setDirection(ballUpdate.direction);
+        }
+    }
+
+    private class BallServerListener implements MessageListener<Client> {
+        public void messageReceived(Client source, Message message) {
+            BallClient.this.enqueue(new MessageReceiver(message));
+        }
+    }
+
+    private class MessageReceiver implements Callable {
+
+        Message message;
+
+        public MessageReceiver(Message message) {
+            this.message = message;
+        }
+
+        public Object call() {
+            if (message instanceof BallUpdateMessage) {
+                BallUpdateMessage buMessage = (BallUpdateMessage) message;
+                performUpdate(buMessage.ballUpdate);
+                
+            } else if (message instanceof AggregateBallUpdatesMessage) {
+                AggregateBallUpdatesMessage abuMessage = (AggregateBallUpdatesMessage) message;
+                for (BallUpdate ballUpdate : abuMessage.ballUpdates) {
+                    performUpdate(ballUpdate);
+                }
+
+            } else if (message instanceof UserAddedMessage) {
+                UserAddedMessage uaMessage = (UserAddedMessage) message;
+                setupUser(uaMessage.userData);
+
+            } else if (message instanceof ConnectedUsersMessage) {
+                ConnectedUsersMessage cuMessage = (ConnectedUsersMessage) message;
+                ArrayList<UserData> userDataList = cuMessage.userDataList;
+                for (UserData userData : userDataList) {
+                    setupUser(userData);
+                }
+            } else if (message instanceof UserLeftServerMessage) {
+                UserLeftServerMessage ulsMessage = (UserLeftServerMessage) message;
+                long userId = ulsMessage.userId;
+                removeUser(users.getValue(userId));
+
+            } else if (message instanceof LogoutMessage) {
+                LogoutMessage lMessage = (LogoutMessage) message;
+                long userId = lMessage.userId;
+                removeUser(users.getValue(userId));
+
+            } else {
+                System.err.println("Received odd message:" + message);
+            }
+            return message;
+        }
+    }
+
     private void setupUser(UserData userData) {
         long callerId = userData.getId();
         User user = new User(assetManager, userData);
@@ -437,15 +337,54 @@ public class BallClient extends SimpleApplication {
         // Make sure bling visible!
         rootNode.attachChild(user.getBlingNode());
     }
+    
+    public User getUser(long id) {
+        return users.getValue(id);
+    }
 
+    public void removeUser(User lostUser) {
+        
+        fireworks.explosionAtPosition(lostUser.getBall().getPosition());
+        
+        users.removeValue(lostUser);
+        rootNode.detachChild(lostUser.getBlingNode());
+        viewLevel.detachChild(lostUser.getGeometry());
+        ghostLevel.detachChild(lostUser.getGeometry());
+        viewAppState.getPhysicsSpace().remove(lostUser.getBall());
+        ghostAppState.getPhysicsSpace().remove(lostUser.getBall());
+    }
+    
+    private ActionListener actionListener = new ActionListener() {
+
+        public void onAction(String binding, boolean isPressed, float tpf) {
+
+            if (binding.equals("CharLeft")) {
+                left = isPressed;
+            } else if (binding.equals("CharRight")) {
+                right = isPressed;
+            } else if (binding.equals("CharForward")) {
+                up = isPressed;
+            } else if (binding.equals("CharBackward")) {
+                down = isPressed;
+                
+            } else if (!isPressed && binding.equals("Shadow")) {
+                if (usesShadows) {
+                    viewPort.removeProcessor(pssmRenderer);
+                } else {
+                    viewPort.addProcessor(pssmRenderer);
+                }
+                usesShadows = !usesShadows;
+            }
+        }
+    };
+    
     private void initKeys() {
-
-        inputManager.addRawInputListener(rawInputListener);
 
         inputManager.addMapping("CharLeft", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("CharRight", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("CharForward", new KeyTrigger(KeyInput.KEY_W));
         inputManager.addMapping("CharBackward", new KeyTrigger(KeyInput.KEY_S));
+        
         inputManager.addListener(actionListener, "CharLeft");
         inputManager.addListener(actionListener, "CharRight");
         inputManager.addListener(actionListener, "CharForward");
@@ -456,26 +395,25 @@ public class BallClient extends SimpleApplication {
     }
 
     private void initAppStates() {
+        
         viewAppState = new BulletAppState();
-        // viewAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(viewAppState);
 
         ghostAppState = new BulletAppState();
-        // ghostAppState.setThreadingType(BulletAppState.ThreadingType.PARALLEL);
         stateManager.attach(ghostAppState);
+        
+        bgas = new BoardGameAppState(this, client);
+        stateManager.attach(bgas);
+        
+        chatControl = new ChatControl(this, client);
+        stateManager.attach(chatControl);
     }
 
-    private PssmShadowRenderer pssmRenderer;
-    
     public void initShadow() {
         pssmRenderer = new PssmShadowRenderer(assetManager, 1024, 2);
         pssmRenderer.setDirection(new Vector3f(-.5f,-.5f,-.5f).normalizeLocal()); // light direction
         viewPort.addProcessor(pssmRenderer);
         pssmRenderer.setShadowIntensity(0.3f);
-    }
-
-    public void chasePlayer() {
-        setCameraTarget(playerUser.getGeometry());
     }
 
     private void setCameraTarget(Geometry target) {
@@ -514,186 +452,24 @@ public class BallClient extends SimpleApplication {
     public ChaseCamera getChaseCamera() {
         return chaseCamera;
     }
-
-    private class GomokuMessageListener implements MessageListener<Client> {
-
-        public void messageReceived(Client source, Message message) {
-            System.out.println("Received Gomoku message " + message);
-            BallClient.this.enqueue(new GomokuMessageReceiver(message));
-        }
+    public void chasePlayer() {
+        setCameraTarget(playerUser.getGeometry());
     }
-
-    private void updateScore(long winnerId, long loserId, int scoreChange) {
-        users.getValue(winnerId).updateScore(scoreChange);
-        users.getValue(loserId).updateScore(-scoreChange);
-        
-        if (winnerId == playerUserData.id) {
-            client.send(new ChatMessage("I win! +" + scoreChange, playerUserData.id));
-        } else if (loserId == playerUserData.id) {
-            client.send(new ChatMessage("I lose, -" + scoreChange, playerUserData.id));
-        }
-    }
-
-    private class GomokuMessageReceiver implements Callable {
-
-        Message message;
-
-        public GomokuMessageReceiver(Message message) {
-            this.message = message;
-        }
-
-        public Object call() {
-
-            if (message instanceof GomokuEndMessage) {
-
-                GomokuEndMessage gem = (GomokuEndMessage) message;
-
-                if (gem.gameID == currentGameId) {
-                    stateManager.detach(bgas);
-                } else {
-                    GomokuBoard3D dummyBoard = currentGames.get(gem.gameID);
-                    rootNode.detachChild(dummyBoard);
-                    
-                    showFireworks(dummyBoard.getLocalTranslation());
-                }
-                
-                updateScore(gem.winnerID, gem.loserID, gem.scoreChange);
-
-                User u1 = users.getValue(gem.winnerID);
-                User u2 = users.getValue(gem.loserID);
-
-                u1.setFrozen(false);
-                u2.setFrozen(false);
-
-
-            } else if (message instanceof GomokuStartMessage) {
-
-                GomokuStartMessage gsm = (GomokuStartMessage) message;
-
-                if (gsm.firstPlayerID == playerUser.getId()
-                        || gsm.secondPlayerID == playerUser.getId()) {
-
-                    stateManager.attach(bgas);
-                    GomokuGame newGame = bgas.startNewGame(gsm);
-                    currentGameId = newGame.getID();
-
-                } else if (Settings.SHOW_ALL_GOMOKU_BOARDS) {
-
-                    GomokuGame game = new GomokuGame(gsm);
-                    GomokuBoard3D dummyBoard = new GomokuBoard3D(assetManager, game);
-                    dummyBoard.positionBetween(gsm.firstPlayerPos, gsm.secondPlayerPos);
-                    rootNode.attachChild(dummyBoard);
-
-                    currentGames.put(gsm.gameID, dummyBoard);
-
-                }
-
-                User u1 = users.getValue(gsm.firstPlayerID);
-                User u2 = users.getValue(gsm.secondPlayerID);
-                
-                u1.setFrozen(gsm.firstPlayerPos);
-                u2.setFrozen(gsm.secondPlayerPos);
-
-
-            } else if (message instanceof GomokuUpdateMessage) {
-                GomokuUpdateMessage gum = (GomokuUpdateMessage) message;
-
-                if (gum.gameID == currentGameId) {
-                    // This is handled elsewhere for our own game
-                } else {
-                    GomokuBoard3D board = currentGames.get(gum.gameID);
-                    if (board != null) {
-                        board.setColor(gum.p, gum.color);
-                    }
-                }
-
-            } else {
-
-                System.err.println("Received odd message:" + message);
-            }
-
-            return message;
-        }
-    }
-    
     
     public void showFireworks(Vector3f location) {
         if (Settings.FANCY_EFFECTS)
             fireworks.emitAtPosition(location);
     }
     
-    private BitmapText chatTextField;
-    private String chatString = "";
-    private boolean isEnteringChat = false;
-    private RawInputListener rawInputListener = new RawInputListener() {
-
-        public void beginInput() {}
-        public void endInput() {}
-        public void onJoyAxisEvent(JoyAxisEvent evt) {}
-        public void onJoyButtonEvent(JoyButtonEvent evt) {}
-        public void onMouseMotionEvent(MouseMotionEvent evt) {}
-        public void onMouseButtonEvent(MouseButtonEvent evt) {}
-
-        public void onKeyEvent(KeyInputEvent evt) {
-
-            if (!evt.isPressed()) {
-                return;
-
-            } else if (!isEnteringChat && evt.getKeyCode() == KeyInput.KEY_RETURN) {
-                isEnteringChat = true;
-                chatTextField.setText(((isEnteringChat) ? "Enter message: _" : ""));
-                evt.setConsumed();
-
-            } else if (isEnteringChat) {
-
-                switch (evt.getKeyCode()) {
-                    case KeyInput.KEY_ESCAPE:
-                        isEnteringChat = false;
-                        chatTextField.setText("");
-                        evt.setConsumed();
-                        return;
-
-                    case KeyInput.KEY_RETURN:
-                        if (chatString.equals("")) {
-                            isEnteringChat = false;
-                            chatTextField.setText("");
-                            evt.setConsumed();
-                            return;
-                        } else {
-                            client.send(new ChatMessage(chatString, playerUserData.id));
-                            chatString = "";
-                        }
-                        break;
-
-                    case KeyInput.KEY_BACK:
-                        if (chatString.length() > 0) {
-                            chatString = chatString.substring(0, chatString.length() - 1);
-                        }
-                        break;
-
-                    default:
-                        char c = evt.getKeyChar();
-                        chatString += c;
-                        break;
-                }
-                chatTextField.setText("Enter message: " + chatString + "_");
-                evt.setConsumed();
-            }
-        }
-        
-        public void onTouchEvent(TouchEvent evt) {}
-    };
-
-    private void setupChat() {
-
-        guiFont = assetManager.loadFont("Interface/Fonts/HelveticaNeue.fnt");
-        chatTextField = new BitmapText(guiFont, false);
-
-        chatTextField.setSize(guiFont.getCharSet().getRenderedSize());
-        chatTextField.setText("");
-        chatTextField.setColor(ColorRGBA.White);
-        chatTextField.setLocalTranslation(new Vector3f(16, 40, 0f));
-
-        guiNode.attachChild(chatTextField);
+    /*
+     * ChatDelegate methods
+     */
+    @Override
+    public void onIncomingMessage(String msg, long sender) {
+        users.getValue(sender).displayMessage(msg);
+    }
+    @Override
+    public long getChatterId() {
+        return playerUserData.id;
     }
 }

@@ -15,7 +15,6 @@ import com.jme3.math.Vector3f;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Node;
-import com.jme3.scene.Spatial;
 import com.jme3.scene.control.BillboardControl;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
@@ -37,7 +36,7 @@ public class User {
 
     private static int NUM_CHAT_LINES = 3;
     private static int CHAT_DELAY = 200;
-            
+    
     private BitmapFont guiFont;
     private BitmapText[] chatLines = new BitmapText[NUM_CHAT_LINES];
     private Node chatNode;
@@ -171,8 +170,8 @@ public class User {
             }
         }
     }
-
-    void setFrozen(Vector3f pos) {
+    
+    public void setFrozen(Vector3f pos) {
         setFrozen(true);
         ball.setPosition(pos);
         ghost.setPosition(pos);
@@ -190,12 +189,13 @@ public class User {
     
     int removeChatIndex = -1;
     
-    public void showChatMessage(String text) {
+    
+    public void displayMessage(String msg) {
         
         for (int i = NUM_CHAT_LINES - 1; i > 0; i--) {
             chatLines[i].setText(chatLines[i - 1].getText());
         }
-        chatLines[0].setText(text);
+        chatLines[0].setText(msg);
         
         removeChatDelay = CHAT_DELAY;
         removeChatIndex = Math.min(removeChatIndex + 1, NUM_CHAT_LINES - 1);
@@ -219,12 +219,12 @@ public class User {
         userNameText.setLocalTranslation(new Vector3f(xOffset, yOffset, 0f));
     }
 
-    void updateScore(int scoreChange) {
+    public void updateScore(int scoreChange) {
         
         Node textNode = (Node) blingNode.getChild("UserNameTextNode");
         BitmapText userNameText = (BitmapText) textNode.getChild("UserNameText");
 
-        userData.rank += scoreChange;
+        userData.rank = Math.max(userData.rank + scoreChange, 1);
         userNameText.setText(userData.userName + " (" + userData.rank + ")");
     }
 }

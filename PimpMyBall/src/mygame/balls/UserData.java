@@ -6,6 +6,7 @@ package mygame.balls;
 
 import com.jme3.math.Vector3f;
 import com.jme3.network.serializing.Serializable;
+import java.util.Random;
 
 /**
  *
@@ -24,9 +25,15 @@ public class UserData {
     public long bling;
 
     public UserData() {
+        Random rand = new Random();
+        float x = -128 + rand.nextInt(256);
+        float y = 100;
+        float z = -128 + rand.nextInt(256);
+        position = new Vector3f(x, y, z);
     }
     
     public UserData(long id) {
+        this();
         this.id = id;
     }
     
