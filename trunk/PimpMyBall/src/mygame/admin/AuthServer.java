@@ -7,7 +7,6 @@ package mygame.admin;
 import com.jme3.math.Vector3f;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Random;
 import mygame.balls.UserData;
 
 
@@ -17,58 +16,22 @@ import mygame.balls.UserData;
  */
 public class AuthServer {
     
-    private static Random rand = new Random();
-
-    void setUserOnline(long userId) {
-        
-    }
-
-    void setUserOffline(long userId) {
-        
-    }
+    private static long NEW_USER_ID;
+    private static AuthServer instance;
     
-    private static class ASUser {
-        
-        Vector3f pos = new Vector3f(0, 100, 0);
-        String name;
-        String password;
-        long userID;
-        int rank = 1000;
-        boolean online = false;
-        
-        ASUser(String name, String password, long id) {
-            this.name = name;
-            this.password = password;
-            this.userID = id;
-            // this.rank = rand.nextInt(2000);
-        }
-    }
-    
-    static HashMap<String, AuthServer> servers = new HashMap<String, AuthServer>();
-    static ASUser[] fakeUsers = new ASUser[] {
-        new ASUser("alex", "pass", 0x03L),
-        new ASUser("jimmy", "klass", 0x07L),
-        new ASUser("nicke", "kass", 0x15L),
-    };
-    
-    private String name;
-    private HashMap<String, ASUser> usersByName = new HashMap<String, ASUser>();
-    private HashMap<Long, ASUser> usersById = new HashMap<Long, ASUser>();
-    
+    private HashMap<String, String> users = new HashMap<String, String>();
+    private HashMap<Long, Boolean> userStatus = new HashMap<Long, Boolean>();
             
-    private AuthServer(String name) {
-        
-        // Read from file
-        this.name = name;
-        
-        for (ASUser u : fakeUsers) {
-            usersByName.put(u.name, u);
-            usersById.put(u.userID, u);
+    protected static AuthServer getInstance() {
+        if (instance == null) {
+            instance = new AuthServer();
         }
+        return instance;
     }
     
-    public String getName() {
-        return name;
+    private AuthServer() {
+        users = DataManager.getUserList();
+        NEW_USER_ID = Long.decode(users.get("id"));
     }
     
     /**
@@ -78,63 +41,60 @@ public class AuthServer {
      * @param pass
      * @return 
      */
-    public UserData authenticate(String name, String pass) {
-        
-        ASUser u = usersByName.get(name);
-
-        if (u != null && u.password.equals(pass)) {
+    protected UserData authenticate(String name, String pass) {
+        if (users.get(name).equals(pass)) {
+            return DataManager.readFile(name);
+        }
+        return null;
+    }
+    
+    protected UserData createUser(String name, String pass) {
+ 
+        // Only create a new user if the name is unique
+        if (users.get(name) == null) {
+ 
             UserData data = new UserData();
-            data.id = u.userID;
-            data.rank = u.rank;
-            data.userName = u.name;
-            data.position = u.pos;
+            data.id = NEW_USER_ID++;
+            data.rank = 1000;
+            data.userName = name;
+            data.position = new Vector3f();
             data.bling = 0;
             data.materialIndex = 0;
+            
+            users.put(name, pass);
+            DataManager.writeData(data);
+            
+            users.put("id", "" + NEW_USER_ID);
+            DataManager.saveUserList(users);
+        
             return data;
         }
         
         return null;
     }
     
-    public static AuthServer createServer(String name) {
+    protected void saveData(ArrayList<UserData> data) {
         
-        AuthServer serv = servers.get(name);
-        
-        if (serv == null) {
-            serv = new AuthServer(name);
-            servers.put(name, serv);
+        if (data != null) {
+            for (UserData ud : data) {
+                DataManager.writeData(ud);
+            }
         }
         
-        return serv;
+        users.put("id", "" + NEW_USER_ID);
+        DataManager.saveUserList(users);
     }
     
-    public static AuthServer getServer(String name) {
-        return servers.get(name);
+    protected void userLoggedOut(long id) {
+        userStatus.put(id, false);
     }
     
-    public void saveData(ArrayList<UserData> data) {
-        for (UserData ud : data) {
-            ASUser u = usersByName.get(ud.userName);
-            u.rank = ud.rank;
-        }
+    protected void userLoggedIn(long id) {
+        userStatus.put(id, true);
     }
     
-    public void userLoggedOut(long id) {
-        ASUser user = usersById.get(id);
-        if (user != null) {
-            user.online = false;
-        }
-    }
-    
-    public void userLoggedIn(long id) {
-        ASUser user = usersById.get(id);
-        if (user != null) {
-            user.online = true;
-        }
-    }
-    
-    public boolean isLoggedIn(long id) {
-        ASUser user = usersById.get(id);
-        return (user == null) ? false : user.online;
+    protected boolean isLoggedIn(long id) {
+        Boolean status = userStatus.get(id);
+        return (status == null) ? false : status;
     }
 }

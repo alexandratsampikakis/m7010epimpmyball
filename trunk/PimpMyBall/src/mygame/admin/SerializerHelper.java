@@ -16,6 +16,7 @@ import mygame.admin.messages.BackupDataMessage;
 import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.messages.BallRejectedMessage;
 import com.jme3.network.serializing.Serializer;
+import mygame.admin.messages.RegisterUserMessage;
 import mygame.balls.BallUpdate;
 import mygame.balls.UserData;
 import mygame.balls.messages.AggregateBallUpdatesMessage;
@@ -25,14 +26,13 @@ import mygame.balls.messages.ConnectedUsersMessage;
 import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.RequestUsersMessage;
 import mygame.balls.messages.UserAddedMessage;
-import mygame.boardgames.GridPoint;
-import mygame.boardgames.GridSize;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.network.broadcast.GomokuEndMessage;
-import mygame.boardgames.network.GomokuMessage;
-import mygame.boardgames.network.broadcast.GomokuStartMessage;
-import mygame.boardgames.network.NewGameMessage;
-import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
+import mygame.util.GridPoint;
+import mygame.util.GridSize;
+import mygame.boardgames.network.GomokuEndMessage;
+import mygame.boardgames.network.AbstractGomokuMessage;
+import mygame.boardgames.network.GomokuDrawMessage;
+import mygame.boardgames.network.GomokuStartMessage;
+import mygame.boardgames.network.GomokuUpdateMessage;
 
 /**
  *
@@ -50,6 +50,7 @@ public class SerializerHelper {
         Serializer.registerClass(LoginMessage.class);
         Serializer.registerClass(LoginFailedMessage.class);
         Serializer.registerClass(LoginSuccessMessage.class);
+        Serializer.registerClass(RegisterUserMessage.class);
         
         // Ball server messages
         Serializer.registerClass(GameServerStartedMessage.class);
@@ -73,12 +74,11 @@ public class SerializerHelper {
         // Gomoku messages
         Serializer.registerClass(GridPoint.class);
         Serializer.registerClass(GridSize.class);
-        Serializer.registerClass(GomokuMessage.class);
-        Serializer.registerClass(NewGameMessage.class);
-        
+        Serializer.registerClass(AbstractGomokuMessage.class); 
         Serializer.registerClass(GomokuStartMessage.class);
         Serializer.registerClass(GomokuEndMessage.class);
         Serializer.registerClass(GomokuUpdateMessage.class);
+        Serializer.registerClass(GomokuDrawMessage.class);
         
         Serializer.registerClass(ChatMessage.class);
         

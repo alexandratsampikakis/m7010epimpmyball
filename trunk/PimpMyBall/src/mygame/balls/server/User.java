@@ -11,7 +11,7 @@ import com.jme3.scene.Geometry;
 import com.jme3.scene.shape.Sphere;
 import mygame.balls.Ball;
 import mygame.balls.UserData;
-import mygame.boardgames.GridPoint;
+import mygame.util.GridPoint;
 
 /**
  *

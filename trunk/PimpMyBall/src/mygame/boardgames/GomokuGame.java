@@ -4,23 +4,21 @@
  */
 package mygame.boardgames;
 
+import mygame.util.GridSize;
+import mygame.util.GridPoint;
 import java.util.ArrayList;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.GomokuGrid;
-import mygame.boardgames.gomoku.WinningRow;
-import mygame.boardgames.gomoku.player.GomokuPlayer;
-import mygame.boardgames.network.NewGameMessage;
-import mygame.boardgames.network.broadcast.GomokuStartMessage;
+import mygame.boardgames.network.GomokuStartMessage;
 
 /**
- *
+ * 
  * @author Jimmy
  */
 public class GomokuGame {
-    
+
     public interface Listener {
         public void onMove(GomokuGame game, CellColor color, GridPoint p);
         public void onWin(GomokuGame game, WinningRow wr);
+        public void onDraw(GomokuGame game);
         public void onReset(GomokuGame game);
     }
     
@@ -28,8 +26,8 @@ public class GomokuGame {
     
     private final int gameID;
     private GomokuGrid grid;
-    private GomokuPlayer startingPlayer = null, currentPlayer = null;
-    private boolean locked = true;
+    private GomokuPlayer firstPlayer, secondPlayer, currentTurn;
+    private boolean locked = false;
     private ArrayList<Listener> listeners = null;
     
     public GomokuGame(GridSize size) {
@@ -41,87 +39,82 @@ public class GomokuGame {
         this(new GridSize(11, 11));
     }
     
-    public GomokuGame(NewGameMessage msg) {
-        gameID = msg.getGameID();
-        grid = new GomokuGrid(msg.getGridSize());
+    public GomokuGame(long firstPlayerID, long secondPlayerID) {
+        this();
+        firstPlayer = new GomokuPlayer(firstPlayerID, CellColor.BLUE);
+        secondPlayer = new GomokuPlayer(secondPlayerID, CellColor.RED);
+        currentTurn = firstPlayer;
     }
     
     public GomokuGame(GomokuStartMessage msg) {
-        gameID = msg.gameID;
+        
+        gameID = msg.getGameID();
         grid = new GomokuGrid(msg.boardSize);
+        
+        firstPlayer = new GomokuPlayer(msg.firstPlayerID, CellColor.BLUE);
+        secondPlayer = new GomokuPlayer(msg.secondPlayerID, CellColor.RED);
+        currentTurn = firstPlayer;
     }
-    public void setPlayers(GomokuPlayer p1, GomokuPlayer p2) {
-        
-        startingPlayer = currentPlayer = p1;
-        
-        p1.setOpponent(p2);
-        p2.setOpponent(p1);
-        
-        p1.setGame(this);
-        p2.setGame(this);
-    }
-    
-    public void start() {
-        
-        locked = false;
-        
-        GomokuPlayer opponent = startingPlayer.getOpponent();
-        opponent.onStartGame(false);
-        startingPlayer.onStartGame(true);
-        
-        // Switch starting player for next game
-        // startingPlayer = opponent;
-    }
-    
+
     public void reset() {
         grid.reset();
-        start();
-        
+        locked = false;
         notifyListenersOnReset();
     }
     
-    public boolean tryMove(GomokuPlayer player, GridPoint p) {
+    public long getOpponentID(long id) {
+        return firstPlayer.id == id ? secondPlayer.id : firstPlayer.id;
+    }
+    private GomokuPlayer getOpponent(GomokuPlayer p) {
+        return (firstPlayer == p) ? secondPlayer : firstPlayer;
+    }
+    
+    public boolean tryMove(long playerID, GridPoint p) {
         
         if (locked)
             return false;
         
-        if (player != currentPlayer)
+        if (playerID != currentTurn.id)
             return false;
         
-        if (!grid.tryMove(p, player.getColor()))
+        CellColor playedColor = currentTurn.color;
+        
+        if (!grid.tryMove(p, playedColor))
             return false;
-        
-        GomokuPlayer opponent = player.getOpponent();
-        
-        currentPlayer = opponent;
-        
+
         WinningRow wr = new WinningRow(grid);
         CellColor winningColor = wr.getWinningColor();
+        currentTurn = getOpponent(currentTurn);
         
         // Notify listeners
         if (winningColor == CellColor.NONE) {
-            notifyListenersOnMove(player.getColor(), p);
-            opponent.onOpponentMove(p);
+            if (grid.isFull()) {
+                notifyListenersOnDraw();
+            } else {
+                notifyListenersOnMove(playedColor, p);
+            }
         } else {
             locked = true;
+            notifyListenersOnMove(playedColor, p);
             notifyListenersOnWin(wr);
-            opponent.onOpponentMove(p);
-            player.onGameWon(winningColor);
-            opponent.onGameWon(winningColor);
         }
-        
         return true;
     }
     
     public GomokuGrid getGrid() {
         return grid;
     }
+    
     public GomokuPlayer getCurrentPlayer() {
-        return currentPlayer;
+        return currentTurn;
     }
-    public GomokuPlayer getStartingPlayer() {
-        return startingPlayer;
+    public GomokuPlayer getFirstPlayer() {
+        return firstPlayer;
     }
+    public GomokuPlayer getSecondPlayer() {
+        return secondPlayer;
+    }
+    
     public int getID() {
         return gameID;
     }
@@ -134,6 +127,11 @@ public class GomokuGame {
             listeners = new ArrayList<Listener>();
         }
         listeners.add(listener);
+    }
+    public void removeListener(Listener listener) {
+        if (listeners != null) {
+            listeners.remove(listener);
+        }
     }
     
     private void notifyListenersOnWin(WinningRow wr) {
@@ -156,6 +154,14 @@ public class GomokuGame {
         if (listeners != null) {
             for (Listener listener : listeners) {
                 listener.onReset(this);
+            }
+        }
+    }
+    
+    private void notifyListenersOnDraw() {
+        if (listeners != null) {
+            for (Listener listener : listeners) {
+                listener.onDraw(this);
             }
         }
     }

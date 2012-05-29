@@ -13,16 +13,15 @@ import com.jme3.network.HostedConnection;
 import com.jme3.network.Message;
 import com.jme3.network.MessageListener;
 import com.jme3.network.Server;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
-import mygame.admin.CentralServer;
 import mygame.admin.ChatMessage;
+import mygame.admin.Config;
 import mygame.admin.NetworkHelper;
 import mygame.admin.SerializerHelper;
 import mygame.admin.ServerInfo;
+import mygame.admin.messages.BackupDataMessage;
 import mygame.admin.messages.BallAcceptedMessage;
 import mygame.admin.messages.GameServerStartedMessage;
 import mygame.admin.messages.IncomingBallMessage;
@@ -39,46 +38,51 @@ import mygame.balls.messages.HelloMessage;
 import mygame.balls.messages.RequestUsersMessage;
 import mygame.balls.messages.UserAddedMessage;
 import mygame.boardgames.GomokuGame;
-import mygame.boardgames.GridPoint;
-import mygame.boardgames.gomoku.CellColor;
-import mygame.boardgames.gomoku.WinningRow;
-import mygame.boardgames.gomoku.player.RemotePlayerServer;
-import mygame.boardgames.network.GomokuServerSlave;
-import mygame.boardgames.network.broadcast.GomokuEndMessage;
-import mygame.boardgames.network.broadcast.GomokuStartMessage;
-import mygame.boardgames.network.broadcast.GomokuUpdateMessage;
+import mygame.util.GridPoint;
+import mygame.boardgames.CellColor;
+import mygame.boardgames.WinningRow;
+import mygame.boardgames.network.GomokuDrawMessage;
+import mygame.boardgames.network.GomokuEndMessage;
+import mygame.boardgames.network.GomokuStartMessage;
+import mygame.boardgames.network.GomokuUpdateMessage;
 import mygame.util.BiMap;
 
 public class BallServer extends SimpleApplication {
 
+    private static final String NAME = "Pimp My Ball Server";
+    private static final float shortUpdateTime = 0.1f;
+    private static final float longUpdateTime = shortUpdateTime * 50f;
+    
     private Server server;
     private Client centralServerClient;
-    public static final String NAME = "Pimp My Ball Server";
-    public ServerInfo info;// = new ServerInfo("Ball Server", "192.168.1.5", 5110);
-    // = new ServerInfo("Ball Server", "130.240.110.57", 5110);
+    private ServerInfo info;
+    
     private float shortTimeCounter = 0f;
     private float longTimeCounter = 0f;
+    
     private BiMap<Long, User> users = new BiMap<Long, User>();
+    private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
     private TestLevel level;
     private BulletAppState bulletAppState;
-    private BiMap<Integer, UserData> pendingUserData = new BiMap<Integer, UserData>();
     private AreaOfInterestManager aoiManager;
     private GomokuServerSlave gomokuSlave;
-    private final float shortUpdateTime = 0.1f;
-    private final float longUpdateTime = shortUpdateTime * 50f;
-
+    
+    
+    public static void main(String[] args) throws Exception {
+        BallServer balls = new BallServer(Config.getCentralServerInfo());
+        balls.start(); // JmeContext.Type.Headless);
+    }
+    
     public BallServer(ServerInfo centralServerInfo) throws Exception {
 
-        String address = getIp();
-        System.out.println("ip: " + address);
+        String address = NetworkHelper.getLocalIP();
+        System.out.println("IP: " + address);
         info = new ServerInfo("Ball Server", address, 5110);
 
         server = NetworkHelper.createServer(info);
-        server.addMessageListener(new ClientMessageListener());
         server.addConnectionListener(new ClientConnectionListener());
-
+        server.addMessageListener(new ClientMessageListener());
         server.addMessageListener(new MessageListener<HostedConnection>() {
-
             public void messageReceived(HostedConnection source, Message m) {
                 server.broadcast(m);
             }
@@ -92,19 +96,9 @@ public class BallServer extends SimpleApplication {
         this.setPauseOnLostFocus(false);
     }
 
-    public static void main(String[] args) throws Exception {
-
-        BallServer balls = new BallServer(CentralServer.info);
-        balls.start(); // JmeContext.Type.Headless);
-
-        // Run FOREVER!
-        synchronized (CentralServer.info) {
-            CentralServer.info.wait();
-        }
-    }
-
     @Override
     public void simpleInitApp() {
+        
         SerializerHelper.initializeClasses();
         initAppState();
         initLevel();
@@ -112,10 +106,45 @@ public class BallServer extends SimpleApplication {
         flyCam.setMoveSpeed(30f); // KAAAST!!!!!
         server.start();
         centralServerClient.start();
+        
         // Send its own server info to the central server
         centralServerClient.send(new GameServerStartedMessage(info));
     }
 
+    @Override
+    public void simpleUpdate(float tpf) {
+
+        if (longTimeCounter > longUpdateTime) {
+
+            server.broadcast(new AggregateBallUpdatesMessage(users.getValues()));
+            longTimeCounter = 0;
+
+        } else if (shortTimeCounter > shortUpdateTime) {
+            sendBallUpdatesToAOIs();
+            shortTimeCounter = 0;
+        }
+
+        shortTimeCounter += tpf;
+        longTimeCounter += tpf;
+
+        for (User user : users.getValues()) {
+            user.update(tpf);
+            aoiManager.setAOIMidpoint(user);
+        }
+    }
+
+    @Override
+    public void destroy() {
+        
+        centralServerClient.send(new BackupDataMessage(getUserDataList()));
+        centralServerClient.close();
+        
+        server.close();
+        
+        super.destroy();
+    }
+    
+    
     /**
      * For every user, send an updatemessage to everyone who's interested
      */
@@ -126,55 +155,7 @@ public class BallServer extends SimpleApplication {
             server.broadcast(Filters.in(filter), new BallUpdateMessage(ball));
         }
     }
-
-    //SNÖÖÖR!!
-    /*
-    private void broadcastBallData(boolean toAll) {
-    for (User user : users.getValues()) {
-    Ball ball = user.getBall();
-    BallUpdateMessage ballMessage = new BallUpdateMessage(ball);
     
-    if (toAll) { // check if the message should be sent to all clients
-    server.broadcast(ballMessage);
-    //.---------
-    System.out.println("TO ALL!!!!!!");
-    //.---------
-    
-    } else {// Otherwise, send only to interested clients
-    HashSet filter = aoiManager.getInterestedConnections(user);
-    server.broadcast(Filters.in(filter), ballMessage);
-    //.---------
-    System.out.println("TO SOME: ");
-    for (Object o : filter) {
-    HostedConnection h = (HostedConnection) o;
-    System.out.println("    " + h.getAttribute("ID"));
-    }
-    //.---------
-    }
-    }
-    }*/
-    public void broadcastGomokuUpdate(GomokuGame game, CellColor color, GridPoint p) {
-        server.broadcast(new GomokuUpdateMessage(game, color, p));
-    }
-
-    public void broadcastGomokuGameStarted(GomokuGame game) {
-        server.broadcast(new GomokuStartMessage(game));
-    }
-
-    public void broadcastGomokuGameFinished(GomokuGame game, WinningRow row) {
-
-        RemotePlayerServer p1 = (RemotePlayerServer) game.getStartingPlayer();
-        RemotePlayerServer p2 = (RemotePlayerServer) p1.getOpponent();
-
-        p1.getUser().getBall().setMass(Ball.defaultMass);
-        p1.getUser().setImmortal();
-        p2.getUser().getBall().setMass(Ball.defaultMass);
-        p2.getUser().setImmortal();
-
-        int scoreChange = 50; // TODO: Compute score change
-        server.broadcast(new GomokuEndMessage(game, row, scoreChange));
-    }
-
     /**
      * Send information about a new user to all other users
      * @param newId The ID of the new user
@@ -220,8 +201,6 @@ public class BallServer extends SimpleApplication {
 
         public Object call() {
 
-            // System.out.println("BallServer Received message " + message);
-
             // If it is a ballmessage, set the direction of the ball
             if (message instanceof BallDirectionMessage) {
 
@@ -230,12 +209,6 @@ public class BallServer extends SimpleApplication {
                 long uid = bdMessage.id;
                 User user = users.getValue(uid);
                 Vector3f dir = bdMessage.direction;
-
-                /*
-                System.out.println("Id: " + uid);
-                System.out.println("User: " + user);
-                System.out.println("Direction: " + dir);
-                 */
 
                 if (user != null && dir != null) {
                     Ball ball = user.getBall();
@@ -265,19 +238,27 @@ public class BallServer extends SimpleApplication {
                 LogoutMessage lMessage = (LogoutMessage) message;
                 User user = users.getValue(lMessage.userId);
                 removeUser(user);
+                
             } else if (message instanceof RequestUsersMessage) {
                 RequestUsersMessage ruMessage = (RequestUsersMessage) message;
-                //long id = ruMessage.id;
                 sendConnectedUsersToSingleUser(conn);
 
             } else {
-
                 System.err.println("Received odd message:" + message);
             }
             return message;
         }
     }
 
+    private class ClientConnectionListener implements ConnectionListener {
+        public void connectionAdded(Server server, HostedConnection conn) {
+            System.out.println("Connection added " + conn);
+        }
+        public void connectionRemoved(Server server, HostedConnection conn) {
+            BallServer.this.enqueue(new ConnectionLost(conn));
+        }
+    }
+    
     private class ConnectionLost implements Callable {
 
         HostedConnection conn;
@@ -305,26 +286,11 @@ public class BallServer extends SimpleApplication {
     private class CentralServerListener implements MessageListener<Client> {
 
         public void messageReceived(Client source, Message message) {
-
             if (message instanceof IncomingBallMessage) {
-
-                // System.out.println("BallServer Received message " + message);
-
                 IncomingBallMessage ibMessage = (IncomingBallMessage) message;
                 pendingUserData.put(ibMessage.secret, ibMessage.userData);
                 centralServerClient.send(new BallAcceptedMessage(ibMessage.secret));
             }
-        }
-    }
-
-    private class ClientConnectionListener implements ConnectionListener {
-
-        public void connectionAdded(Server server, HostedConnection conn) {
-            System.out.println("Connection added " + conn);
-        }
-
-        public void connectionRemoved(Server server, HostedConnection conn) {
-            BallServer.this.enqueue(new ConnectionLost(conn));
         }
     }
 
@@ -342,55 +308,13 @@ public class BallServer extends SimpleApplication {
 
                 if (userA.canPlay() && userB.canPlay()) {
 
-                    // if (!ballA.isKinematic() && !ballB.isKinematic()) {
-
-                    /*
-                    Vector3f v1 = ballA.getPosition().clone();
-                    Vector3f v2 = ballB.getPosition().clone();
-                    
-                    Vector3f fromTo = v2.add(v1.negate()); // .mult(0.5f);
-                     */
-
                     // Stop the balls from moving
                     ballA.setMass(0);
                     ballB.setMass(0);
 
-                    /*
-                    ballA.setKinematic(true);
-                    ballB.setKinematic(true);
-                     */
-
                     gomokuSlave.startGame(userA, userB);
                 }
             }
-        }
-    }
-
-    @Override
-    public void destroy() {
-        server.close();
-        super.destroy();
-    }
-
-    @Override
-    public void simpleUpdate(float tpf) {
-
-        if (longTimeCounter > longUpdateTime) {
-
-            server.broadcast(new AggregateBallUpdatesMessage(users.getValues()));
-            longTimeCounter = 0;
-
-        } else if (shortTimeCounter > shortUpdateTime) {
-            sendBallUpdatesToAOIs();
-            shortTimeCounter = 0;
-        }
-
-        shortTimeCounter += tpf;
-        longTimeCounter += tpf;
-
-        for (User user : users.getValues()) {
-            user.update(tpf);
-            aoiManager.setAOIMidpoint(user);
         }
     }
 
@@ -413,17 +337,29 @@ public class BallServer extends SimpleApplication {
 
         return user;
     }
+    
+    public User getUser(long id) {
+        return users.getValue(id);
+    }
 
     private void removeUser(User lostUser) {
+        
+        // Player loses any gomoku game he's currently playing
+        gomokuSlave.playerLeftGame(lostUser);
+        
         UserLeftServerMessage ulMessage = new UserLeftServerMessage(lostUser);
+
         // Inform the central server that the user has logged out
+        centralServerClient.send(new BackupDataMessage(lostUser.getUserData()));
         centralServerClient.send(ulMessage);
+        
         // Inform all remaining users
         server.broadcast(ulMessage);
+        
         // Remove the user completely
         users.removeValue(lostUser);
         level.detachChild(lostUser.getGeometry());
-        bulletAppState.getPhysicsSpace().remove(lostUser.getBall());        
+        bulletAppState.getPhysicsSpace().remove(lostUser.getBall());
     }
 
     private void initAppState() {
@@ -439,19 +375,5 @@ public class BallServer extends SimpleApplication {
         level = new TestLevel(assetManager, bulletAppState);
         rootNode.attachChild(level);
         level.initGraphics(assetManager); //Kasta sen!!!
-    }
-
-    private String getIp() throws UnknownHostException {
-        String address = "";
-
-        InetAddress addr = InetAddress.getLocalHost();
-        // Get IP Address
-        byte[] ipAddr = addr.getAddress();
-        String i0 = Integer.toString((ipAddr[0] & 0xFF));
-        String i1 = Integer.toString((ipAddr[1] & 0xFF));
-        String i2 = Integer.toString((ipAddr[2] & 0xFF));
-        String i3 = Integer.toString((ipAddr[3] & 0xFF));
-        address = i0 + "." + i1 + "." + i2 + "." + i3;
-        return address;
     }
 }

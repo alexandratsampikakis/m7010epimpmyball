@@ -3,7 +3,7 @@ package mygame.balls.server;
 import com.jme3.network.HostedConnection;
 import java.util.ArrayList;
 import java.util.HashSet;
-import mygame.boardgames.GridPoint;
+import mygame.util.GridPoint;
 
 /**
  *

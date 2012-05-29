@@ -7,25 +7,23 @@ package mygame.boardgames.network;
 import com.jme3.network.AbstractMessage;
 import com.jme3.network.serializing.Serializable;
 import mygame.boardgames.GomokuGame;
-import mygame.boardgames.GridPoint;
 
 /**
  *
  * @author Jimmy
  */
 @Serializable
-public class GomokuMessage extends AbstractMessage {
+public class AbstractGomokuMessage extends AbstractMessage {
     
-    public int gameID = -1;
-    public GridPoint p;
+    private int gameID = -1;
     
-    public GomokuMessage() {
-        p = new GridPoint();
-        setReliable(true);
+    public AbstractGomokuMessage() {
     }
-    public GomokuMessage(GomokuGame game, GridPoint p) {
-        this.p = p;
+    public AbstractGomokuMessage(GomokuGame game) {
         this.gameID = game.getID();
-        setReliable(true);
+    }
+    
+    public int getGameID() {
+        return gameID;
     }
 }
